@@ -1,12 +1,12 @@
 'use client';
 
-import { useBetScoreStore } from '@/lib/store';
+import { useGextenStore } from '@/lib/store';
 import { bookmakers } from '@/lib/dummyData';
 import { useState } from 'react';
 import { ShoppingCart, Ticket, Copy, CheckCircle2, XCircle } from 'lucide-react';
 
 export default function BookingCodeGenerator() {
-  const { selectedMatches, bookingCode, generateBookingCode, clearBookingCode, clearSelections } = useBetScoreStore();
+  const { selectedMatches, bookingCode, generateBookingCode, clearBookingCode, clearSelections } = useGextenStore();
   const [selectedBookmaker, setSelectedBookmaker] = useState(bookmakers[0]);
   const [copied, setCopied] = useState(false);
   
@@ -156,7 +156,7 @@ export default function BookingCodeGenerator() {
                 </div>
               </div>
               <button
-                onClick={() => useBetScoreStore.getState().deselectMatch(selection.matchId)}
+                onClick={() => useGextenStore.getState().deselectMatch(selection.matchId)}
                 className="text-red-500 hover:text-red-700"
               >
                 <XCircle className="w-5 h-5" />

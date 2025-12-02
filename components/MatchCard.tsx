@@ -1,7 +1,7 @@
 'use client';
 
 import { Match } from '@/lib/types';
-import { useBetScoreStore } from '@/lib/store';
+import { useGextenStore } from '@/lib/store';
 import { format } from 'date-fns';
 import { TrendingUp, TrendingDown, Minus, Calendar, Activity } from 'lucide-react';
 
@@ -10,7 +10,7 @@ interface MatchCardProps {
 }
 
 export default function MatchCard({ match }: MatchCardProps) {
-  const { selectedMatches, selectMatch, deselectMatch } = useBetScoreStore();
+  const { selectedMatches, selectMatch, deselectMatch } = useGextenStore();
   const isSelected = selectedMatches.has(match.id);
   
   const handleSelectOutcome = (market: 'h2h', outcome: 'home' | 'draw' | 'away', odds: number) => {

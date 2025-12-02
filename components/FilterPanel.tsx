@@ -1,11 +1,11 @@
 'use client';
 
-import { useBetScoreStore } from '@/lib/store';
+import { useGextenStore } from '@/lib/store';
 import { bookmakers, leagues } from '@/lib/dummyData';
 import { SlidersHorizontal } from 'lucide-react';
 
 export default function FilterPanel() {
-  const { filters, updateFilters } = useBetScoreStore();
+  const { filters, updateFilters } = useGextenStore();
   
   return (
     <div className="bg-white rounded-lg shadow-md p-6 mb-6">

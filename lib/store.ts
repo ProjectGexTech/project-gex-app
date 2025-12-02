@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { Match, BettingSelection, BookingCode, SearchFilters } from './types';
 import { generateDummyMatches, filterMatches } from './dummyData';
 
-interface BetScoreStore {
+interface GextenStore {
   // State
   allMatches: Match[];
   filteredMatches: Match[];
@@ -20,7 +20,7 @@ interface BetScoreStore {
   // Actions
   initializeMatches: () => void;
   applyFilters: () => void;
-  updateFilters: (filters: Partial<BetScoreStore['filters']>) => void;
+  updateFilters: (filters: Partial<GextenStore['filters']>) => void;
   selectMatch: (selection: BettingSelection) => void;
   deselectMatch: (matchId: string) => void;
   clearSelections: () => void;
@@ -28,7 +28,7 @@ interface BetScoreStore {
   clearBookingCode: () => void;
 }
 
-export const useBetScoreStore = create<BetScoreStore>((set, get) => ({
+export const useGextenStore = create<GextenStore>((set, get) => ({
   allMatches: [],
   filteredMatches: [],
   selectedMatches: new Map(),

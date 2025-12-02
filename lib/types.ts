@@ -1,4 +1,4 @@
-// Type definitions for the BetScore demo
+// Type definitions for the Gexten app
 
 export type MarketType = 'h2h' | 'ou25' | 'btts' | 'dc';
 
