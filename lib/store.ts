@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import { Match, BettingSelection, BookingCode, SearchFilters } from './types';
-import { generateDummyMatches, filterMatches } from './dummyData';
+import { filterMatches } from './dummyData';
+import { oddsAPIService } from './oddsAPI';
+import { transformOddsAPIMatches } from './oddsTransformer';
 
 interface GextenStore {
   // State
@@ -8,6 +10,9 @@ interface GextenStore {
   filteredMatches: Match[];
   selectedMatches: Map<string, BettingSelection>;
   bookingCode: BookingCode | null;
+  isLoading: boolean;
+  error: string | null;
+  lastUpdated: Date | null;
   filters: {
     oddsMin: number;
     oddsMax: number;
@@ -18,7 +23,8 @@ interface GextenStore {
   };
   
   // Actions
-  initializeMatches: () => void;
+  initializeMatches: () => Promise<void>;
+  refreshMatches: () => Promise<void>;
   applyFilters: () => void;
   updateFilters: (filters: Partial<GextenStore['filters']>) => void;
   selectMatch: (selection: BettingSelection) => void;
@@ -33,6 +39,9 @@ export const useGextenStore = create<GextenStore>((set, get) => ({
   filteredMatches: [],
   selectedMatches: new Map(),
   bookingCode: null,
+  isLoading: false,
+  error: null,
+  lastUpdated: null,
   filters: {
     oddsMin: 1.2,
     oddsMax: 3.0,
@@ -42,9 +51,39 @@ export const useGextenStore = create<GextenStore>((set, get) => ({
     h2hWeight: 40,
   },
   
-  initializeMatches: () => {
-    const matches = generateDummyMatches(20);
-    set({ allMatches: matches, filteredMatches: matches });
+  initializeMatches: async () => {
+    set({ isLoading: true, error: null });
+    
+    try {
+      const apiMatches = await oddsAPIService.fetchSoccerOdds();
+      const matches = transformOddsAPIMatches(apiMatches);
+      
+      set({ 
+        allMatches: matches, 
+        filteredMatches: matches,
+        lastUpdated: new Date(),
+        isLoading: false,
+        error: null,
+      });
+      
+      // Apply filters after loading
+      get().applyFilters();
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to fetch matches';
+      set({ 
+        isLoading: false, 
+        error: errorMessage,
+        allMatches: [],
+        filteredMatches: [],
+      });
+      console.error('Error initializing matches:', error);
+    }
+  },
+
+  refreshMatches: async () => {
+    // Clear cache and fetch fresh data
+    oddsAPIService.clearCache();
+    await get().initializeMatches();
   },
   
   applyFilters: () => {
