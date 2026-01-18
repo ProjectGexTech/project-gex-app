@@ -84,6 +84,7 @@ function generateH2H(): HeadToHead {
     awayWins,
     draws,
     lastResults: results.slice(0, 5),
+    games: [], // Empty array for dummy data
   };
 }
 
@@ -190,32 +191,76 @@ export function filterMatches(
     markets?: string[];
     bookmakers?: string[];
     leagues?: string[];
+    dateRange?: {
+      start: Date;
+      days: number;
+    };
   }
 ): Match[] {
-  return matches.filter(match => {
+  let dateFilteredOut = 0;
+  let oddsFilteredOut = 0;
+  let bookmakerFilteredOut = 0;
+  let leagueFilteredOut = 0;
+  
+  const result = matches.filter(match => {
+    // Filter by date range
+    if (filters.dateRange) {
+      const matchDate = new Date(match.date);
+      const startDate = new Date(filters.dateRange.start);
+      startDate.setHours(0, 0, 0, 0);
+      
+      const endDate = new Date(startDate);
+      endDate.setDate(endDate.getDate() + filters.dateRange.days);
+      endDate.setHours(23, 59, 59, 999);
+      
+      if (matchDate < startDate || matchDate > endDate) {
+        dateFilteredOut++;
+        return false;
+      }
+    }
+    
     // Filter by odds range
     if (filters.oddsMin && filters.oddsMax) {
       const hasValidOdds = 
-        (match.odds.h2h?.home >= filters.oddsMin && match.odds.h2h?.home <= filters.oddsMax) ||
-        (match.odds.h2h?.away >= filters.oddsMin && match.odds.h2h?.away <= filters.oddsMax) ||
-        (match.odds.ou25?.over >= filters.oddsMin && match.odds.ou25?.over <= filters.oddsMax);
+        (match.odds.h2h && match.odds.h2h.home >= filters.oddsMin && match.odds.h2h.home <= filters.oddsMax) ||
+        (match.odds.h2h && match.odds.h2h.away >= filters.oddsMin && match.odds.h2h.away <= filters.oddsMax) ||
+        (match.odds.ou25 && match.odds.ou25.over >= filters.oddsMin && match.odds.ou25.over <= filters.oddsMax);
       
-      if (!hasValidOdds) return false;
+      if (!hasValidOdds) {
+        oddsFilteredOut++;
+        return false;
+      }
     }
     
     // Filter by bookmakers
     if (filters.bookmakers && filters.bookmakers.length > 0) {
       const hasBookmaker = match.bookmakers.some(b => filters.bookmakers!.includes(b));
-      if (!hasBookmaker) return false;
+      if (!hasBookmaker) {
+        bookmakerFilteredOut++;
+        return false;
+      }
     }
     
     // Filter by leagues
     if (filters.leagues && filters.leagues.length > 0) {
-      if (!filters.leagues.includes(match.league)) return false;
+      if (!filters.leagues.includes(match.league)) {
+        leagueFilteredOut++;
+        return false;
+      }
     }
     
     return true;
   });
+  
+  if (result.length === 0 && matches.length > 0) {
+    console.warn('🚫 All matches filtered out!');
+    console.warn(`   - Date filter removed: ${dateFilteredOut}`);
+    console.warn(`   - Odds filter removed: ${oddsFilteredOut}`);
+    console.warn(`   - Bookmaker filter removed: ${bookmakerFilteredOut}`);
+    console.warn(`   - League filter removed: ${leagueFilteredOut}`);
+  }
+  
+  return result;
 }
 
 export { bookmakers, leagues };

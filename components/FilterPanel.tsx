@@ -3,25 +3,57 @@
 import { useGextenStore } from '@/lib/store';
 import { bookmakers, leagues } from '@/lib/dummyData';
 import { SlidersHorizontal } from 'lucide-react';
+import DateRangeSelector from './DateRangeSelector';
+import LeagueSelector from './LeagueSelector';
+import MarketPicker from './MarketPicker';
+import PrimaryBookmakerSelector from './PrimaryBookmakerSelector';
 
 export default function FilterPanel() {
   const { filters, updateFilters } = useGextenStore();
   
   return (
-    <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-      <div className="flex items-center gap-2 mb-4">
-        <SlidersHorizontal className="w-5 h-5 text-blue-600" />
-        <h2 className="text-lg font-semibold text-gray-800">Filters</h2>
+    <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl rounded-2xl border border-slate-200/50 dark:border-slate-700/50 p-6 mb-6 shadow-xl shadow-slate-200/50 dark:shadow-slate-900/50">
+      <div className="flex items-center gap-3 mb-6">
+        <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center shadow-lg shadow-purple-500/20">
+          <SlidersHorizontal className="w-5 h-5 text-white" />
+        </div>
+        <h2 className="text-xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">Filters</h2>
       </div>
+      
+      {/* Date Range */}
+      <DateRangeSelector />
+      
+      {/* League Selector */}
+      <LeagueSelector />
+      
+      {/* Market Picker */}
+      <MarketPicker />
+      
+      {/* Primary Bookmaker */}
+      <PrimaryBookmakerSelector />
       
       {/* Odds Range */}
       <div className="mb-4">
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Odds Range: {filters.oddsMin.toFixed(2)} - {filters.oddsMax.toFixed(2)}
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          Odds Range
         </label>
-        <div className="flex gap-4">
-          <div className="flex-1">
-            <label className="block text-xs text-gray-600 mb-1">Min</label>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-xs text-gray-600 dark:text-gray-400 mb-2">Min</label>
+            <input
+              type="number"
+              min="1.01"
+              max="5.00"
+              step="0.01"
+              value={filters.oddsMin}
+              onChange={(e) => {
+                const value = parseFloat(e.target.value);
+                if (!isNaN(value) && value >= 1.01 && value <= filters.oddsMax) {
+                  updateFilters({ oddsMin: value });
+                }
+              }}
+              className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 dark:text-white mb-2"
+            />
             <input
               type="range"
               min="1.01"
@@ -32,8 +64,22 @@ export default function FilterPanel() {
               className="w-full"
             />
           </div>
-          <div className="flex-1">
-            <label className="block text-xs text-gray-600 mb-1">Max</label>
+          <div>
+            <label className="block text-xs text-gray-600 dark:text-gray-400 mb-2">Max</label>
+            <input
+              type="number"
+              min="1.01"
+              max="10.00"
+              step="0.01"
+              value={filters.oddsMax}
+              onChange={(e) => {
+                const value = parseFloat(e.target.value);
+                if (!isNaN(value) && value >= filters.oddsMin && value <= 10.00) {
+                  updateFilters({ oddsMax: value });
+                }
+              }}
+              className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 dark:text-white mb-2"
+            />
             <input
               type="range"
               min="1.01"
@@ -49,7 +95,7 @@ export default function FilterPanel() {
       
       {/* Bookmakers */}
       <div className="mb-4">
-        <label className="block text-sm font-medium text-gray-700 mb-2">Bookmakers</label>
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Bookmakers</label>
         <div className="flex flex-wrap gap-2">
           {bookmakers.map(bookmaker => (
             <button
@@ -62,8 +108,8 @@ export default function FilterPanel() {
               }}
               className={`px-3 py-1 text-sm rounded-full border transition-colors ${
                 filters.bookmakers.includes(bookmaker)
-                  ? 'bg-blue-600 text-white border-blue-600'
-                  : 'bg-white text-gray-700 border-gray-300 hover:border-blue-400'
+                  ? 'bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 border-gray-900 dark:border-gray-100'
+                  : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-700 hover:border-gray-500 dark:hover:border-gray-500'
               }`}
             >
               {bookmaker}
@@ -74,7 +120,7 @@ export default function FilterPanel() {
       
       {/* Leagues */}
       <div className="mb-4">
-        <label className="block text-sm font-medium text-gray-700 mb-2">Leagues</label>
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Leagues</label>
         <div className="flex flex-wrap gap-2">
           {leagues.map(league => (
             <button
@@ -87,8 +133,8 @@ export default function FilterPanel() {
               }}
               className={`px-3 py-1 text-sm rounded-full border transition-colors ${
                 filters.leagues.includes(league)
-                  ? 'bg-green-600 text-white border-green-600'
-                  : 'bg-white text-gray-700 border-gray-300 hover:border-green-400'
+                  ? 'bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 border-gray-900 dark:border-gray-100'
+                  : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-700 hover:border-gray-500 dark:hover:border-gray-500'
               }`}
             >
               {league}
@@ -100,7 +146,7 @@ export default function FilterPanel() {
       {/* Prediction Weights */}
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
             Form Weight: {filters.formWeight}%
           </label>
           <input
@@ -117,7 +163,7 @@ export default function FilterPanel() {
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
             H2H Weight: {filters.h2hWeight}%
           </label>
           <input

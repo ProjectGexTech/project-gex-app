@@ -23,28 +23,39 @@ interface OddsAPIMatch {
   }>;
 }
 
+import { useAPIKeysStore } from './apiKeysStore';
+
 const API_BASE_URL = 'https://api.the-odds-api.com/v4';
-const API_KEY = process.env.NEXT_PUBLIC_ODDS_API_KEY;
+
+// Get API key from store instead of environment variable
+const getAPIKey = () => {
+  return useAPIKeysStore.getState().oddsApiKey;
+};
 
 // Soccer sports available on The Odds API
-// Start with just Premier League for faster loading
+// All major leagues supported
 const SOCCER_SPORTS = [
   'soccer_epl',           // English Premier League
-  // Uncomment below to add more leagues:
-  // 'soccer_spain_la_liga', // Spanish La Liga
-  // 'soccer_germany_bundesliga', // German Bundesliga
-  // 'soccer_italy_serie_a', // Italian Serie A
-  // 'soccer_france_ligue_one', // French Ligue 1
-  // 'soccer_uefa_champs_league', // UEFA Champions League
-  // 'soccer_uefa_europa_league', // UEFA Europa League
-  // 'soccer_england_league1', // English League 1
-  // 'soccer_england_league2', // English League 2
-  // 'soccer_efl_champ',     // English Championship
-  // 'soccer_australia_aleague', // Australian A-League
-  // 'soccer_brazil_campeonato', // Brazilian Série A
-  // 'soccer_mexico_ligamx', // Mexican Liga MX
-  // 'soccer_usa_mls',       // US MLS
+  'soccer_spain_la_liga', // Spanish La Liga
+  'soccer_germany_bundesliga', // German Bundesliga
+  'soccer_italy_serie_a', // Italian Serie A
+  'soccer_france_ligue_one', // French Ligue 1
+  'soccer_uefa_champs_league', // UEFA Champions League
+  'soccer_uefa_europa_league', // UEFA Europa League
+  'soccer_efl_champ',     // English Championship
 ];
+
+// League display names mapping
+export const LEAGUE_KEYS = {
+  'soccer_epl': 'Premier League',
+  'soccer_spain_la_liga': 'La Liga',
+  'soccer_germany_bundesliga': 'Bundesliga',
+  'soccer_italy_serie_a': 'Serie A',
+  'soccer_france_ligue_one': 'Ligue 1',
+  'soccer_uefa_champs_league': 'Champions League',
+  'soccer_uefa_europa_league': 'Europa League',
+  'soccer_efl_champ': 'Championship',
+} as const;
 
 export class OddsAPIService {
   private static instance: OddsAPIService;
@@ -68,20 +79,23 @@ export class OddsAPIService {
     // Check cache first
     const now = Date.now();
     if (this.cachedData.length > 0 && now - this.lastFetchTime < this.CACHE_DURATION) {
-      console.log('✅ Returning cached soccer odds data');
+      // console.log('✅ Returning cached soccer odds data');
       return this.cachedData;
     }
 
-    if (!API_KEY || API_KEY === 'your_api_key_here') {
+    const API_KEY = getAPIKey();
+    console.log('🔑 Odds API - Retrieved key from store:', API_KEY ? `${API_KEY.substring(0, 8)}...` : 'null');
+
+    if (!API_KEY) {
       console.error('❌ Odds API key not configured');
-      throw new Error('Please set up your Odds API key in .env.local');
+      throw new Error('Please configure your Odds API key to fetch matches');
     }
 
     try {
-      console.log('🔄 Fetching fresh soccer odds from The Odds API...');
-      console.log(`🔑 Using API key: ${API_KEY?.substring(0, 8)}...`);
-      console.log(`📅 Will filter to: Dec 20-31, 2025`);
-      console.log(`� Fetching ${SOCCER_SPORTS.length} leagues:`, SOCCER_SPORTS);
+      // console.log('🔄 Fetching fresh soccer odds from The Odds API...');
+      // console.log(`🔑 Using API key: ${API_KEY?.substring(0, 8)}...`);
+      // console.log(`📅 Will filter to: Next 14 days`);
+      // console.log(`� Fetching ${SOCCER_SPORTS.length} leagues:`, SOCCER_SPORTS);
       
       // Fetch odds for all soccer leagues in parallel
       const promises = SOCCER_SPORTS.map(sport => 
@@ -94,7 +108,7 @@ export class OddsAPIService {
       const allMatches: OddsAPIMatch[] = [];
       results.forEach((result, index) => {
         if (result.status === 'fulfilled') {
-          console.log(`✅ ${SOCCER_SPORTS[index]}: ${result.value.length} matches`);
+          // console.log(`✅ ${SOCCER_SPORTS[index]}: ${result.value.length} matches`);
           allMatches.push(...result.value);
         } else {
           console.warn(`❌ Failed to fetch ${SOCCER_SPORTS[index]}:`, result.reason);
@@ -108,7 +122,7 @@ export class OddsAPIService {
       if (allMatches.length === 0) {
         console.warn('⚠️ No matches found in any league. This might be normal if no games are scheduled.');
       } else {
-        console.log(`✅ Successfully fetched ${allMatches.length} soccer matches total`);
+        // console.log(`✅ Successfully fetched ${allMatches.length} soccer matches total`);
       }
       
       return allMatches;
@@ -117,7 +131,7 @@ export class OddsAPIService {
       
       // Return cached data if available, even if expired
       if (this.cachedData.length > 0) {
-        console.log('⚠️ Returning stale cached data due to API error');
+        // console.log('⚠️ Returning stale cached data due to API error');
         return this.cachedData;
       }
       
@@ -129,8 +143,13 @@ export class OddsAPIService {
    * Fetch odds for a specific sport
    */
   private async fetchOddsForSport(sportKey: string): Promise<OddsAPIMatch[]> {
+    const API_KEY = getAPIKey();
+    if (!API_KEY) {
+      throw new Error('API key not configured');
+    }
+    
     const params = new URLSearchParams({
-      apiKey: API_KEY!,
+      apiKey: API_KEY,
       regions: 'eu,us', // European and US bookmakers (simplified from uk,eu,us)
       markets: 'h2h,totals', // Head-to-head and totals (removed btts - not supported)
       oddsFormat: 'decimal', // Use decimal odds format
@@ -139,7 +158,7 @@ export class OddsAPIService {
 
     const url = `${API_BASE_URL}/sports/${sportKey}/odds?${params}`;
     
-    console.log(`📡 Fetching ${sportKey}...`);
+    // console.log(`📡 Fetching ${sportKey}...`);
     
     const response = await fetch(url, {
       method: 'GET',
@@ -148,12 +167,14 @@ export class OddsAPIService {
       },
     });
 
+    console.log(`Response:`, response);
+
     if (!response.ok) {
       const errorText = await response.text();
-      console.error(`❌ API Error for ${sportKey}:`);
-      console.error(`   Status: ${response.status} ${response.statusText}`);
-      console.error(`   Response: ${errorText}`);
-      console.error(`   URL: ${url}`);
+      // console.error(`❌ API Error for ${sportKey}:`);
+      // console.error(`   Status: ${response.status} ${response.statusText}`);
+      // console.error(`   Response: ${errorText}`);
+      // console.error(`   URL: ${url}`);
       
       if (response.status === 401) {
         throw new Error('Invalid API key. Please check your .env.local file');
@@ -163,26 +184,20 @@ export class OddsAPIService {
       throw new Error(`API request failed: ${response.status} ${response.statusText}`);
     }
 
-    // Log remaining requests (useful for monitoring usage)
-    const remainingRequests = response.headers.get('x-requests-remaining');
-    const usedRequests = response.headers.get('x-requests-used');
-    if (remainingRequests) {
-      console.log(`📊 API Requests - Used: ${usedRequests}, Remaining: ${remainingRequests}`);
-    }
-
     const data: OddsAPIMatch[] = await response.json();
-    console.log(`   ${sportKey}: ${data.length} matches found`);
+    console.log(`Data for ${sportKey}:`, data);
+    // console.log(`   ${sportKey}: ${data.length} matches found`);
     
-    // Filter matches to only show those in the next 11 days (Dec 20-31)
+    // Filter matches to only show those in the next 14 days
     const now = new Date();
-    const endDate = new Date('2025-12-31T23:59:59Z');
+    const endDate = new Date(now.getTime() + (14 * 24 * 60 * 60 * 1000)); // 14 days from now
     const filtered = data.filter(match => {
       const matchDate = new Date(match.commence_time);
       return matchDate >= now && matchDate <= endDate;
     });
     
     if (filtered.length < data.length) {
-      console.log(`   Filtered to ${filtered.length} matches (Dec 20-31 range)`);
+      console.log(`   Filtered to ${filtered.length} matches (next 14 days)`);
     }
     
     return filtered;
@@ -194,7 +209,7 @@ export class OddsAPIService {
   clearCache(): void {
     this.cachedData = [];
     this.lastFetchTime = 0;
-    console.log('Cache cleared');
+    // console.log('Cache cleared');
   }
 
   /**

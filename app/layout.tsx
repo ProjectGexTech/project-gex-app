@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "BetScore - AI-Powered Football Betting Shortlist",
-  description: "Smart betting tool that aggregates odds, provides AI predictions, and generates one-click booking codes",
+  title: "Gexten - Smart Football Betting Odds",
+  description: "Shortlist football bets fast with live odds aggregation and smart filtering",
 };
 
 export default function RootLayout({
@@ -23,9 +23,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" className="dark">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-white dark:bg-gray-950`}
       >
         {children}
       </body>

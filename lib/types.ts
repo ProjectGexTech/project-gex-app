@@ -36,12 +36,69 @@ export interface TeamForm {
   goalsConceded: number;
 }
 
+export interface H2HGame {
+  date: string;
+  homeTeam: string;
+  awayTeam: string;
+  homeGoals: number;
+  awayGoals: number;
+  result: 'H' | 'A' | 'D'; // Home win, Away win, Draw
+}
+
 export interface HeadToHead {
   totalMeetings: number;
   homeWins: number;
   awayWins: number;
   draws: number;
   lastResults: string[]; // e.g., ["H", "A", "D"]
+  games: H2HGame[]; // Last 10 H2H games with details
+}
+
+export interface DetailedAIPrediction {
+  // Overall prediction
+  homeWin: number;
+  draw: number;
+  awayWin: number;
+  confidence: ConfidenceLevel;
+  predictedWinner: 'home' | 'away' | 'draw';
+  
+  // Form analysis (last 10 games for each team)
+  form: {
+    home: {
+      wins: number;
+      draws: number;
+      losses: number;
+      goalsScored: number;
+      goalsConceded: number;
+      formString: string; // "WWDLW..."
+    };
+    away: {
+      wins: number;
+      draws: number;
+      losses: number;
+      goalsScored: number;
+      goalsConceded: number;
+      formString: string;
+    };
+  };
+  
+  // Head-to-Head analysis (last 10 H2H games)
+  h2h: {
+    totalGames: number;
+    homeWins: number;
+    awayWins: number;
+    draws: number;
+    homeGoalsScored: number;
+    awayGoalsScored: number;
+    games: H2HGame[];
+  };
+  
+  // Breakdown of factors
+  breakdown: {
+    formScore: { home: number; away: number };
+    h2hScore: { home: number; away: number };
+    finalScore: { home: number; away: number };
+  };
 }
 
 export interface Prediction {
@@ -65,6 +122,7 @@ export interface Match {
   odds: Odds;
   bookmakers: string[];
   prediction: Prediction;
+  detailedPrediction?: DetailedAIPrediction; // Loaded on-demand
   form: {
     home: TeamForm;
     away: TeamForm;

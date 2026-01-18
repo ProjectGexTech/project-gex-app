@@ -37,6 +37,12 @@ if response.status_code != 200:
     print(f"Failed to fetch data: {response.text}")
 else:
     data = response.json()
+    
+    # Print raw API response for debugging
+    print("\n=== RAW API RESPONSE ===")
+    print(data)
+    print("========================\n")
+    
     print(f"\nFound {len(data)} upcoming matches total.")
     print(f"Showing matches between {start_date} and {end_date} with odds between 1.6 and 5.0\n")
 
@@ -92,5 +98,3 @@ else:
 
     if match_count == 0:
         print("No matches found in the date range with requested odds and bookmakers.")
-
-

@@ -1,5 +1,6 @@
 // Utility to transform Odds API data into our app's format
 import { Match, Team, Odds, Prediction, TeamForm, HeadToHead } from './types';
+import { enhanceMatchesWithStats } from './statsEnhancer';
 
 interface OddsAPIMatch {
   id: string;
@@ -122,6 +123,7 @@ function generatePlaceholderH2H(): HeadToHead {
     awayWins: 0,
     draws: 0,
     lastResults: [],
+    games: [],
   };
 }
 
@@ -297,15 +299,30 @@ export function transformOddsAPIMatch(apiMatch: OddsAPIMatch): Match {
 /**
  * Transform multiple matches
  */
-export function transformOddsAPIMatches(apiMatches: OddsAPIMatch[]): Match[] {
+export async function transformOddsAPIMatches(apiMatches: OddsAPIMatch[]): Promise<Match[]> {
   console.log(`🔄 Transforming ${apiMatches.length} API matches...`);
   
+  // First transform basic match data
   const transformed = apiMatches.map(transformOddsAPIMatch);
   
   console.log(`✅ Successfully transformed ${transformed.length} matches`);
   if (transformed.length > 0) {
     console.log(`📅 Date range: ${transformed[0].date.toDateString()} to ${transformed[transformed.length - 1].date.toDateString()}`);
   }
+  
+  // TEMPORARILY DISABLED: Stats enhancement for debugging
+  // TODO: Re-enable after confirming basic functionality works
+  /*
+  try {
+    console.log(`🔍 Enhancing matches with team stats and H2H data...`);
+    const enhancedMatches = await enhanceMatchesWithStats(transformed);
+    console.log(`✨ Enhanced ${enhancedMatches.length} matches with real stats`);
+    return enhancedMatches;
+  } catch (error) {
+    console.warn('⚠️ Stats enhancement failed, using basic match data:', error);
+    return transformed;
+  }
+  */
   
   return transformed;
 }
