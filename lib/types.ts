@@ -99,6 +99,18 @@ export interface DetailedAIPrediction {
     h2hScore: { home: number; away: number };
     finalScore: { home: number; away: number };
   };
+
+  // NEW: Advanced prediction fields
+  recommendedBet?: string;
+  explanation?: string[];
+  factors?: {
+    oddsAnalysis: { score: number; weight: number; confidence: number };
+    recentForm: { score: number; weight: number; confidence: number };
+    headToHead: { score: number; weight: number; confidence: number };
+    leaguePosition: { score: number; weight: number; confidence: number };
+    homeAwayPerformance: { score: number; weight: number; confidence: number };
+    goalTrends: { score: number; weight: number; confidence: number };
+  };
 }
 
 export interface Prediction {

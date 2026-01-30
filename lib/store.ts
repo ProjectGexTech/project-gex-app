@@ -4,6 +4,7 @@ import { filterMatches } from './dummyData';
 import { oddsAPIService } from './oddsAPI';
 import { transformOddsAPIMatches } from './oddsTransformer';
 import { footballStatsService } from './footballStatsAPI';
+import { generateAdvancedPrediction, getPredictionCacheKey, isCacheValid } from './advancedPredictionEngine';
 
 interface GextenStore {
   // State
@@ -33,6 +34,13 @@ interface GextenStore {
   
   // Actions
   initializeMatches: () => Promise<void>;
+  fetchSelectedLeagues: (config: {
+    leagues: string[];
+    markets: string[];
+    dateRange: { start: Date; days: number };
+    regions?: string;
+    bookmakers?: string[];
+  }) => Promise<void>;
   refreshMatches: () => Promise<void>;
   applyFilters: () => void;
   updateFilters: (filters: Partial<GextenStore['filters']>) => void;
@@ -153,6 +161,54 @@ export const useGextenStore = create<GextenStore>((set, get) => ({
     }
   },
 
+  fetchSelectedLeagues: async (config) => {
+    set({ isLoading: true, error: null });
+    
+    try {
+      console.log('🎯 Fetching selected leagues with config:', config);
+      
+      // Fetch only selected leagues (optimized - prevents wasting API credits)
+      const apiMatches = await oddsAPIService.fetchSelectedLeagues(
+        config.leagues,
+        config.markets,
+        config.dateRange.days,
+        config.regions || 'uk,eu',
+        config.bookmakers || []
+      );
+      console.log(`📦 Received ${apiMatches.length} matches from API`);
+      
+      console.log('🔄 Transforming and enhancing matches...');
+      const matches = await transformOddsAPIMatches(apiMatches);
+      console.log(`🎯 Transformed ${matches.length} matches`);
+      
+      set({ 
+        allMatches: matches, 
+        filteredMatches: matches,
+        lastUpdated: new Date(),
+        isLoading: false,
+        error: null,
+      });
+      
+      console.log(`✅ Loaded ${matches.length} matches with enhanced stats`);
+      
+      // Apply filters after loading
+      console.log('🔍 Applying filters...');
+      get().applyFilters();
+      
+      const { filteredMatches } = get();
+      console.log(`🎯 After filtering: ${filteredMatches.length} matches`);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to fetch matches';
+      set({ 
+        isLoading: false, 
+        error: errorMessage,
+        allMatches: [],
+        filteredMatches: [],
+      });
+      console.error('❌ Error fetching selected leagues:', error);
+    }
+  },
+
   refreshMatches: async () => {
     // Clear cache and fetch fresh data
     oddsAPIService.clearCache();
@@ -266,10 +322,35 @@ export const useGextenStore = create<GextenStore>((set, get) => ({
   fetchDetailedPrediction: async (matchId: string) => {
     // Check if already cached
     const cached = get().aiPredictionCache.get(matchId);
-    if (cached) return;
+    if (cached) {
+      console.log(`✅ Using cached prediction for match ${matchId}`);
+      return;
+    }
 
     // Check if already loading
     if (get().loadingPredictions.has(matchId)) return;
+
+    // Check localStorage cache (24-hour cache)
+    if (typeof window !== 'undefined') {
+      const cacheKey = getPredictionCacheKey(matchId);
+      const cachedData = localStorage.getItem(cacheKey);
+      if (cachedData) {
+        try {
+          const { prediction, timestamp } = JSON.parse(cachedData);
+          if (isCacheValid(timestamp)) {
+            console.log(`✅ Using localStorage cached prediction for match ${matchId}`);
+            set(state => {
+              const newCache = new Map(state.aiPredictionCache);
+              newCache.set(matchId, prediction);
+              return { aiPredictionCache: newCache };
+            });
+            return;
+          }
+        } catch (e) {
+          console.warn('Failed to parse cached prediction:', e);
+        }
+      }
+    }
 
     // Mark as loading
     set(state => ({
@@ -283,16 +364,68 @@ export const useGextenStore = create<GextenStore>((set, get) => ({
         throw new Error('Match not found');
       }
 
-      // Fetch detailed prediction data
-      const prediction = await footballStatsService.fetchDetailedPrediction(
-        match.homeTeam.name,
-        match.awayTeam.name
-      );
+      console.log(`🤖 Generating advanced AI prediction for ${match.homeTeam.name} vs ${match.awayTeam.name}...`);
 
-      // Cache the prediction
+      // Generate prediction using advanced engine
+      const predictionResult = generateAdvancedPrediction(match);
+
+      // Convert to DetailedAIPrediction format
+      const detailedPrediction: DetailedAIPrediction = {
+        homeWin: predictionResult.homeWin,
+        draw: predictionResult.draw,
+        awayWin: predictionResult.awayWin,
+        confidence: predictionResult.confidence,
+        predictedWinner: predictionResult.predictedOutcome,
+        form: {
+          home: {
+            wins: match.form?.home?.wins || 0,
+            draws: match.form?.home?.draws || 0,
+            losses: match.form?.home?.losses || 0,
+            goalsScored: match.form?.home?.goalsScored || 0,
+            goalsConceded: match.form?.home?.goalsConceded || 0,
+            formString: match.form?.home?.form || 'N/A',
+          },
+          away: {
+            wins: match.form?.away?.wins || 0,
+            draws: match.form?.away?.draws || 0,
+            losses: match.form?.away?.losses || 0,
+            goalsScored: match.form?.away?.goalsScored || 0,
+            goalsConceded: match.form?.away?.goalsConceded || 0,
+            formString: match.form?.away?.form || 'N/A',
+          },
+        },
+        h2h: {
+          totalGames: match.h2h?.totalMeetings || 0,
+          homeWins: match.h2h?.homeWins || 0,
+          awayWins: match.h2h?.awayWins || 0,
+          draws: match.h2h?.draws || 0,
+          homeGoalsScored: 0,
+          awayGoalsScored: 0,
+          games: match.h2h?.games || [],
+        },
+        breakdown: {
+          formScore: {
+            home: predictionResult.factors.recentForm.score,
+            away: 100 - predictionResult.factors.recentForm.score,
+          },
+          h2hScore: {
+            home: predictionResult.factors.headToHead.score,
+            away: 100 - predictionResult.factors.headToHead.score,
+          },
+          finalScore: {
+            home: predictionResult.homeWin,
+            away: predictionResult.awayWin,
+          },
+        },
+        recommendedBet: predictionResult.recommendedBet,
+        explanation: predictionResult.explanation,
+        factors: predictionResult.factors,
+      };
+
+      // Cache the prediction in memory
       set(state => {
         const newCache = new Map(state.aiPredictionCache);
-        newCache.set(matchId, prediction);
+        newCache.set(matchId, detailedPrediction);
         const newLoading = new Set(state.loadingPredictions);
         newLoading.delete(matchId);
         
@@ -302,9 +435,22 @@ export const useGextenStore = create<GextenStore>((set, get) => ({
         };
       });
 
-      console.log(`✅ Loaded detailed prediction for match ${matchId}`);
+      // Cache in localStorage for 24 hours
+      if (typeof window !== 'undefined') {
+        const cacheKey = getPredictionCacheKey(matchId);
+        localStorage.setItem(cacheKey, JSON.stringify({
+          prediction: detailedPrediction,
+          timestamp: Date.now(),
+        }));
+      }
+
+      console.log(`✅ Generated advanced prediction for match ${matchId}:`, {
+        outcome: predictionResult.predictedOutcome,
+        confidence: predictionResult.confidence,
+        probabilities: `${predictionResult.homeWin}% / ${predictionResult.draw}% / ${predictionResult.awayWin}%`,
+      });
     } catch (error) {
-      console.error('Error fetching detailed prediction:', error);
+      console.error('❌ Error generating prediction:', error);
       
       // Remove from loading set on error
       set(state => {

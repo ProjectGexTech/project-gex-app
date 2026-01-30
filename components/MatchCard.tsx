@@ -3,7 +3,7 @@
 import { Match } from '@/lib/types';
 import { useGextenStore } from '@/lib/store';
 import { format } from 'date-fns';
-import { TrendingUp, TrendingDown, Minus, Calendar, Activity, Brain, Loader2, ChevronDown, ChevronUp, Trophy, Target, BarChart3 } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, Calendar, Activity, Brain, Loader2, ChevronDown, ChevronUp, Trophy, Target, BarChart3, AlertCircle } from 'lucide-react';
 import { useState } from 'react';
 
 interface MatchCardProps {
@@ -104,9 +104,11 @@ export default function MatchCard({ match }: MatchCardProps) {
           <div className="flex items-center gap-2 flex-1">
             <span className="font-bold text-lg text-slate-900">{match.homeTeam.name}</span>
           </div>
-          <span className="text-sm text-slate-600 font-mono bg-slate-100 px-3 py-1 rounded-md">
-            {match.form.home.form}
-          </span>
+          {match.form?.home?.form && match.form.home.form !== 'N/A' && (
+            <span className="text-sm text-slate-600 font-mono bg-slate-100 px-3 py-1 rounded-md">
+              {match.form.home.form}
+            </span>
+          )}
         </div>
         <div className="flex items-center justify-center text-slate-400 text-sm font-semibold my-3">
           VS
@@ -115,78 +117,118 @@ export default function MatchCard({ match }: MatchCardProps) {
           <div className="flex items-center gap-2 flex-1">
             <span className="font-bold text-lg text-slate-900">{match.awayTeam.name}</span>
           </div>
-          <span className="text-sm text-slate-600 font-mono bg-slate-100 px-3 py-1 rounded-md">
-            {match.form.away.form}
-          </span>
+          {match.form?.away?.form && match.form.away.form !== 'N/A' && (
+            <span className="text-sm text-slate-600 font-mono bg-slate-100 px-3 py-1 rounded-md">
+              {match.form.away.form}
+            </span>
+          )}
         </div>
       </div>
       
-      {/* Odds - H2H */}
-      {match.odds.h2h && (
-        <div className="mb-5">
-          <div className="text-xs font-bold text-slate-600 mb-3 flex items-center gap-2">
-            <Activity className="w-4 h-4 text-blue-600" />
-            MATCH WINNER (1X2)
-          </div>
-          <div className="grid grid-cols-3 gap-3">
-            <button
-              onClick={() => handleSelectOutcome('h2h', 'home', match.odds.h2h!.home)}
-              className="bg-blue-50 hover:bg-blue-100 border-2 border-blue-200 hover:border-blue-600 rounded-xl p-4 text-center transition-all"
-            >
-              <div className="text-xs text-blue-700 font-bold mb-1">HOME</div>
-              <div className="text-2xl font-bold text-blue-900">{match.odds.h2h.home.toFixed(2)}</div>
-            </button>
-            <button
-              onClick={() => handleSelectOutcome('h2h', 'draw', match.odds.h2h!.draw)}
-              className="bg-slate-50 hover:bg-slate-100 border-2 border-slate-200 hover:border-blue-600 rounded-xl p-4 text-center transition-all"
-            >
-              <div className="text-xs text-slate-700 font-bold mb-1">DRAW</div>
-              <div className="text-2xl font-bold text-slate-900">{match.odds.h2h.draw.toFixed(2)}</div>
-            </button>
-            <button
-              onClick={() => handleSelectOutcome('h2h', 'away', match.odds.h2h!.away)}
-              className="bg-blue-50 hover:bg-blue-100 border-2 border-blue-200 hover:border-blue-600 rounded-xl p-4 text-center transition-all"
-            >
-              <div className="text-xs text-blue-700 font-bold mb-1">AWAY</div>
-              <div className="text-2xl font-bold text-blue-900">{match.odds.h2h.away.toFixed(2)}</div>
-            </button>
-          </div>
-        </div>
-      )}
-      
-      {/* Prediction */}
-      <div className="bg-blue-50 rounded-xl p-4 border-2 border-blue-200">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 bg-blue-600 rounded-lg flex items-center justify-center">
-              {getPredictionIcon()}
+      {/* Available Markets */}
+      <div className="space-y-3">
+        {/* Match Winner (H2H) */}
+        {match.odds.h2h && (
+          <div>
+            <div className="text-xs font-bold text-slate-600 mb-3 flex items-center gap-2">
+              <Activity className="w-4 h-4 text-blue-600" />
+              MATCH WINNER (1X2)
             </div>
-            <span className="text-sm font-bold text-blue-900">AI Prediction</span>
+            <div className="grid grid-cols-3 gap-3">
+              <button
+                onClick={() => handleSelectOutcome('h2h', 'home', match.odds.h2h!.home)}
+                className="bg-blue-50 hover:bg-blue-100 border-2 border-blue-200 hover:border-blue-600 rounded-xl p-4 text-center transition-all"
+              >
+                <div className="text-xs text-blue-700 font-bold mb-1">HOME</div>
+                <div className="text-2xl font-bold text-blue-900">{match.odds.h2h.home.toFixed(2)}</div>
+              </button>
+              <button
+                onClick={() => handleSelectOutcome('h2h', 'draw', match.odds.h2h!.draw)}
+                className="bg-slate-50 hover:bg-slate-100 border-2 border-slate-200 hover:border-blue-600 rounded-xl p-4 text-center transition-all"
+              >
+                <div className="text-xs text-slate-700 font-bold mb-1">DRAW</div>
+                <div className="text-2xl font-bold text-slate-900">{match.odds.h2h.draw.toFixed(2)}</div>
+              </button>
+              <button
+                onClick={() => handleSelectOutcome('h2h', 'away', match.odds.h2h!.away)}
+                className="bg-blue-50 hover:bg-blue-100 border-2 border-blue-200 hover:border-blue-600 rounded-xl p-4 text-center transition-all"
+              >
+                <div className="text-xs text-blue-700 font-bold mb-1">AWAY</div>
+                <div className="text-2xl font-bold text-blue-900">{match.odds.h2h.away.toFixed(2)}</div>
+              </button>
+            </div>
           </div>
-          <span className={`text-xs font-bold px-3 py-1 rounded-full ${getConfidenceBadge()}`}>
-            {match.prediction.confidence.toUpperCase()}
-          </span>
-        </div>
-        <div className="grid grid-cols-3 gap-3 text-center mb-4">
-          <div>
-            <div className="text-xs text-slate-600 mb-1">Home</div>
-            <div className="text-lg font-bold text-slate-900">{match.prediction.homeWin}%</div>
-          </div>
-          <div>
-            <div className="text-xs text-slate-600 mb-1">Draw</div>
-            <div className="text-lg font-bold text-slate-900">{match.prediction.draw}%</div>
-          </div>
-          <div>
-            <div className="text-xs text-slate-600 mb-1">Away</div>
-            <div className="text-lg font-bold text-slate-900">{match.prediction.awayWin}%</div>
-          </div>
-        </div>
+        )}
         
-        {/* Show AI Analysis Button */}
+        {/* Over/Under 2.5 */}
+        {match.odds.ou25 && (
+          <div>
+            <div className="text-xs font-bold text-slate-600 mb-3 flex items-center gap-2">
+              <Activity className="w-4 h-4 text-green-600" />
+              OVER/UNDER 2.5 GOALS
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={() => handleSelectOutcome('h2h', 'home', match.odds.ou25!.over)}
+                className="bg-green-50 hover:bg-green-100 border-2 border-green-200 hover:border-green-600 rounded-xl p-4 text-center transition-all"
+              >
+                <div className="text-xs text-green-700 font-bold mb-1">OVER 2.5</div>
+                <div className="text-2xl font-bold text-green-900">{match.odds.ou25.over.toFixed(2)}</div>
+              </button>
+              <button
+                onClick={() => handleSelectOutcome('h2h', 'away', match.odds.ou25!.under)}
+                className="bg-orange-50 hover:bg-orange-100 border-2 border-orange-200 hover:border-orange-600 rounded-xl p-4 text-center transition-all"
+              >
+                <div className="text-xs text-orange-700 font-bold mb-1">UNDER 2.5</div>
+                <div className="text-2xl font-bold text-orange-900">{match.odds.ou25.under.toFixed(2)}</div>
+              </button>
+            </div>
+          </div>
+        )}
+        
+        {/* Both Teams To Score */}
+        {match.odds.btts && (
+          <div>
+            <div className="text-xs font-bold text-slate-600 mb-3 flex items-center gap-2">
+              <Activity className="w-4 h-4 text-purple-600" />
+              BOTH TEAMS TO SCORE
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={() => handleSelectOutcome('h2h', 'home', match.odds.btts!.yes)}
+                className="bg-purple-50 hover:bg-purple-100 border-2 border-purple-200 hover:border-purple-600 rounded-xl p-4 text-center transition-all"
+              >
+                <div className="text-xs text-purple-700 font-bold mb-1">YES</div>
+                <div className="text-2xl font-bold text-purple-900">{match.odds.btts.yes.toFixed(2)}</div>
+              </button>
+              <button
+                onClick={() => handleSelectOutcome('h2h', 'away', match.odds.btts!.no)}
+                className="bg-slate-50 hover:bg-slate-100 border-2 border-slate-200 hover:border-blue-600 rounded-xl p-4 text-center transition-all"
+              >
+                <div className="text-xs text-slate-700 font-bold mb-1">NO</div>
+                <div className="text-2xl font-bold text-slate-900">{match.odds.btts.no.toFixed(2)}</div>
+              </button>
+            </div>
+          </div>
+        )}
+        
+        {/* Unavailable Markets Notice */}
+        {!match.odds.h2h && !match.odds.ou25 && !match.odds.btts && (
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 flex items-start gap-2">
+            <AlertCircle className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
+            <div className="text-xs text-amber-800">
+              <strong>Limited data available.</strong> Some requested markets are not available for this match from the current bookmaker.
+            </div>
+          </div>
+        )}
+      </div>
+      
+      {/* Show AI Analysis Button */}
+      <div className="mt-4">
         <button
           onClick={handleShowAIAnalysis}
           disabled={isLoading}
-          className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-semibold py-2.5 px-4 rounded-lg transition-all flex items-center justify-center gap-2"
+          className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-semibold py-3 px-4 rounded-lg transition-all flex items-center justify-center gap-2"
         >
           {isLoading ? (
             <>
@@ -244,7 +286,9 @@ export default function MatchCard({ match }: MatchCardProps) {
               <div className="flex items-center justify-between mb-2">
                 <span className="font-semibold text-slate-900">{match.homeTeam.name}</span>
                 <div className="flex gap-1">
-                  {detailedPrediction.form.home.formString.split('').map((char, idx) => (
+                  {(detailedPrediction.form.home.formString && detailedPrediction.form.home.formString !== 'N/A' 
+                    ? detailedPrediction.form.home.formString.split('') 
+                    : []).map((char, idx) => (
                     <span
                       key={idx}
                       className={`w-6 h-6 rounded flex items-center justify-center text-xs font-bold ${
@@ -287,7 +331,9 @@ export default function MatchCard({ match }: MatchCardProps) {
               <div className="flex items-center justify-between mb-2">
                 <span className="font-semibold text-slate-900">{match.awayTeam.name}</span>
                 <div className="flex gap-1">
-                  {detailedPrediction.form.away.formString.split('').map((char, idx) => (
+                  {(detailedPrediction.form.away.formString && detailedPrediction.form.away.formString !== 'N/A' 
+                    ? detailedPrediction.form.away.formString.split('') 
+                    : []).map((char, idx) => (
                     <span
                       key={idx}
                       className={`w-6 h-6 rounded flex items-center justify-center text-xs font-bold ${
@@ -367,7 +413,7 @@ export default function MatchCard({ match }: MatchCardProps) {
             {/* H2H Game History */}
             <div className="space-y-2">
               <div className="text-sm font-semibold text-slate-700 mb-2">Match History:</div>
-              {detailedPrediction.h2h.games.map((game, idx) => (
+              {(detailedPrediction.h2h.games && detailedPrediction.h2h.games.length > 0) ? detailedPrediction.h2h.games.map((game, idx) => (
                 <div key={idx} className="bg-slate-50 rounded-lg p-3 border border-slate-200">
                   <div className="flex items-center justify-between mb-1">
                     <div className="flex items-center gap-2">
@@ -384,15 +430,93 @@ export default function MatchCard({ match }: MatchCardProps) {
                     {game.homeTeam} vs {game.awayTeam}
                   </div>
                 </div>
-              ))}
+              )) : (
+                <div className="text-center py-4 text-slate-500 text-sm">
+                  No recent head-to-head data available
+                </div>
+              )}
             </div>
           </div>
 
-          {/* Prediction Breakdown */}
+          {/* Recommended Bet (if available) */}
+          {detailedPrediction.recommendedBet && (
+            <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-5 border-2 border-green-200 shadow-sm">
+              <div className="flex items-center gap-2 mb-3">
+                <Target className="w-5 h-5 text-green-600" />
+                <h3 className="font-bold text-slate-900">Recommended Bet</h3>
+              </div>
+              <div className="bg-white rounded-lg p-4 border border-green-200">
+                <p className="text-lg font-semibold text-green-700">{detailedPrediction.recommendedBet}</p>
+              </div>
+            </div>
+          )}
+
+          {/* AI Explanation */}
+          {detailedPrediction.explanation && detailedPrediction.explanation.length > 0 && (
+            <div className="bg-white rounded-xl p-5 border-2 border-slate-200 shadow-sm">
+              <div className="flex items-center gap-2 mb-4">
+                <Brain className="w-5 h-5 text-blue-600" />
+                <h3 className="font-bold text-slate-900">AI Analysis Explanation</h3>
+              </div>
+              <ul className="space-y-2">
+                {detailedPrediction.explanation.map((line, idx) => (
+                  <li key={idx} className="text-sm text-slate-700 flex items-start gap-2">
+                    <span className="text-blue-600 font-bold mt-0.5">•</span>
+                    <span>{line}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Prediction Factors Breakdown (Advanced) */}
+          {detailedPrediction.factors && (
+            <div className="bg-white rounded-xl p-5 border-2 border-slate-200 shadow-sm">
+              <div className="flex items-center gap-2 mb-4">
+                <BarChart3 className="w-5 h-5 text-blue-600" />
+                <h3 className="font-bold text-slate-900">Prediction Factors (Weighted)</h3>
+              </div>
+              
+              <div className="space-y-3">
+                {Object.entries(detailedPrediction.factors).map(([key, factor]) => (
+                  <div key={key}>
+                    <div className="flex justify-between text-sm mb-1">
+                      <span className="text-slate-700 capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-slate-500">{factor.weight}% weight</span>
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">
+                          {(factor.confidence * 100).toFixed(0)}% confidence
+                        </span>
+                      </div>
+                    </div>
+                    <div className="h-2 bg-slate-200 rounded-full overflow-hidden">
+                      <div 
+                        className={`h-full ${
+                          factor.score > 60 ? 'bg-green-600' : 
+                          factor.score > 40 ? 'bg-yellow-500' : 
+                          'bg-red-600'
+                        }`}
+                        style={{ width: `${factor.score}%` }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+              
+              <div className="mt-4 pt-4 border-t border-slate-200">
+                <p className="text-xs text-slate-600">
+                  <span className="font-semibold">How to read:</span> Bars show home team advantage (0-100 scale, 50 = neutral). 
+                  Higher confidence factors have more influence on final prediction.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Legacy Prediction Breakdown */}
           <div className="bg-white rounded-xl p-5 border-2 border-slate-200 shadow-sm">
             <div className="flex items-center gap-2 mb-4">
               <Brain className="w-5 h-5 text-blue-600" />
-              <h3 className="font-bold text-slate-900">AI Computation Breakdown</h3>
+              <h3 className="font-bold text-slate-900">Prediction Breakdown</h3>
             </div>
             
             <div className="space-y-3">
@@ -400,7 +524,7 @@ export default function MatchCard({ match }: MatchCardProps) {
                 <div className="flex justify-between text-sm mb-1">
                   <span className="text-slate-600">Form Score</span>
                   <span className="font-semibold text-slate-900">
-                    {detailedPrediction.breakdown.formScore.home} - {detailedPrediction.breakdown.formScore.away}
+                    {detailedPrediction.breakdown.formScore.home.toFixed(1)} - {detailedPrediction.breakdown.formScore.away.toFixed(1)}
                   </span>
                 </div>
                 <div className="h-2 bg-slate-200 rounded-full overflow-hidden flex">
@@ -419,7 +543,7 @@ export default function MatchCard({ match }: MatchCardProps) {
                 <div className="flex justify-between text-sm mb-1">
                   <span className="text-slate-600">H2H Score</span>
                   <span className="font-semibold text-slate-900">
-                    {detailedPrediction.breakdown.h2hScore.home} - {detailedPrediction.breakdown.h2hScore.away}
+                    {detailedPrediction.breakdown.h2hScore.home.toFixed(1)} - {detailedPrediction.breakdown.h2hScore.away.toFixed(1)}
                   </span>
                 </div>
                 <div className="h-2 bg-slate-200 rounded-full overflow-hidden flex">
@@ -436,9 +560,9 @@ export default function MatchCard({ match }: MatchCardProps) {
               
               <div className="pt-3 border-t border-slate-200">
                 <div className="flex justify-between text-sm mb-1">
-                  <span className="text-slate-900 font-semibold">Final Score (60% Form + 40% H2H)</span>
+                  <span className="text-slate-900 font-semibold">Final Probabilities</span>
                   <span className="font-bold text-blue-600">
-                    {detailedPrediction.breakdown.finalScore.home} - {detailedPrediction.breakdown.finalScore.away}
+                    {detailedPrediction.breakdown.finalScore.home.toFixed(1)}% - {detailedPrediction.breakdown.finalScore.away.toFixed(1)}%
                   </span>
                 </div>
                 <div className="h-3 bg-slate-200 rounded-full overflow-hidden flex">

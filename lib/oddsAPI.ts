@@ -62,6 +62,7 @@ export class OddsAPIService {
   private lastFetchTime: number = 0;
   private cachedData: OddsAPIMatch[] = [];
   private readonly CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+  private queryCache: Map<string, { data: OddsAPIMatch[]; timestamp: number }> = new Map();
 
   private constructor() {}
 
@@ -73,7 +74,83 @@ export class OddsAPIService {
   }
 
   /**
-   * Fetch odds for all soccer leagues
+   * Fetch odds for specific leagues only (OPTIMIZED - prevents wasting API credits)
+   * @param leagueKeys - Array of league keys to fetch (e.g., ['soccer_epl', 'soccer_spain_la_liga'])
+   * @param markets - Markets to fetch (e.g., ['h2h', 'totals'])
+   * @param dateRangeDays - Number of days to fetch (default 7)
+   * @param regions - Regions to fetch from (e.g., 'uk,eu,us')
+   * @param bookmakers - Specific bookmaker keys (optional)
+   */
+  async fetchSelectedLeagues(
+    leagueKeys: string[],
+    markets: string[] = ['h2h', 'totals'],
+    dateRangeDays: number = 7,
+    regions: string = 'uk,eu',
+    bookmakers: string[] = []
+  ): Promise<OddsAPIMatch[]> {
+    if (leagueKeys.length === 0) {
+      throw new Error('No leagues selected');
+    }
+
+    const API_KEY = getAPIKey();
+    if (!API_KEY) {
+      throw new Error('Please configure your Odds API key to fetch matches');
+    }
+
+    console.log(`🎯 Fetching ${leagueKeys.length} selected league(s):`, leagueKeys);
+    console.log(`📊 Markets: ${markets.join(', ')}`);
+    console.log(`🌍 Regions: ${regions}`);
+    if (bookmakers.length > 0) {
+      console.log(`🏢 Bookmakers: ${bookmakers.join(', ')}`);
+    }
+    console.log(`📅 Date range: Next ${dateRangeDays} days`);
+
+    try {
+      // Create a cache key for this specific query
+      const bookmakersKey = bookmakers.length > 0 ? bookmakers.sort().join(',') : 'all';
+      const cacheKey = `${leagueKeys.sort().join(',')}_${markets.sort().join(',')}_${dateRangeDays}_${regions}_${bookmakersKey}`;
+      const cached = this.queryCache.get(cacheKey);
+      
+      // Check if we have cached data for this exact query
+      if (cached && Date.now() - cached.timestamp < this.CACHE_DURATION) {
+        console.log('✅ Returning cached data for this query');
+        return cached.data;
+      }
+
+      // Fetch only the selected leagues (one request per league)
+      const promises = leagueKeys.map(leagueKey => 
+        this.fetchOddsForSport(leagueKey, markets, dateRangeDays, regions, bookmakers)
+      );
+
+      const results = await Promise.allSettled(promises);
+      
+      // Combine all successful results
+      const allMatches: OddsAPIMatch[] = [];
+      results.forEach((result, index) => {
+        if (result.status === 'fulfilled') {
+          console.log(`✅ ${leagueKeys[index]}: ${result.value.length} matches`);
+          allMatches.push(...result.value);
+        } else {
+          console.warn(`❌ Failed to fetch ${leagueKeys[index]}:`, result.reason);
+        }
+      });
+
+      // Cache the results for this specific query
+      this.queryCache.set(cacheKey, {
+        data: allMatches,
+        timestamp: Date.now(),
+      });
+
+      console.log(`✅ Total: ${allMatches.length} matches fetched for selected leagues`);
+      return allMatches;
+    } catch (error) {
+      console.error('❌ Error fetching selected leagues:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Fetch odds for all soccer leagues (LEGACY - uses more API credits)
    */
   async fetchSoccerOdds(): Promise<OddsAPIMatch[]> {
     // Check cache first
@@ -142,7 +219,13 @@ export class OddsAPIService {
   /**
    * Fetch odds for a specific sport
    */
-  private async fetchOddsForSport(sportKey: string): Promise<OddsAPIMatch[]> {
+  private async fetchOddsForSport(
+    sportKey: string, 
+    markets: string[] = ['h2h', 'totals'],
+    dateRangeDays: number = 7,
+    regions: string = 'uk,eu',
+    bookmakers: string[] = []
+  ): Promise<OddsAPIMatch[]> {
     const API_KEY = getAPIKey();
     if (!API_KEY) {
       throw new Error('API key not configured');
@@ -150,11 +233,16 @@ export class OddsAPIService {
     
     const params = new URLSearchParams({
       apiKey: API_KEY,
-      regions: 'eu,us', // European and US bookmakers (simplified from uk,eu,us)
-      markets: 'h2h,totals', // Head-to-head and totals (removed btts - not supported)
-      oddsFormat: 'decimal', // Use decimal odds format
-      dateFormat: 'iso', // ISO date format
+      regions: regions,
+      markets: markets.join(','),
+      oddsFormat: 'decimal',
+      dateFormat: 'iso',
     });
+
+    // Add bookmakers parameter if specific bookmakers are selected
+    if (bookmakers.length > 0) {
+      params.append('bookmakers', bookmakers.join(','));
+    }
 
     const url = `${API_BASE_URL}/sports/${sportKey}/odds?${params}`;
     
@@ -188,16 +276,16 @@ export class OddsAPIService {
     console.log(`Data for ${sportKey}:`, data);
     // console.log(`   ${sportKey}: ${data.length} matches found`);
     
-    // Filter matches to only show those in the next 14 days
+    // Filter matches to only show those in the specified date range
     const now = new Date();
-    const endDate = new Date(now.getTime() + (14 * 24 * 60 * 60 * 1000)); // 14 days from now
+    const endDate = new Date(now.getTime() + (dateRangeDays * 24 * 60 * 60 * 1000));
     const filtered = data.filter(match => {
       const matchDate = new Date(match.commence_time);
       return matchDate >= now && matchDate <= endDate;
     });
     
     if (filtered.length < data.length) {
-      console.log(`   Filtered to ${filtered.length} matches (next 14 days)`);
+      console.log(`   Filtered to ${filtered.length} matches (next ${dateRangeDays} days)`);
     }
     
     return filtered;
@@ -208,6 +296,7 @@ export class OddsAPIService {
    */
   clearCache(): void {
     this.cachedData = [];
+    this.queryCache.clear();
     this.lastFetchTime = 0;
     // console.log('Cache cleared');
   }

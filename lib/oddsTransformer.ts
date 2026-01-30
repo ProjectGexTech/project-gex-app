@@ -310,9 +310,7 @@ export async function transformOddsAPIMatches(apiMatches: OddsAPIMatch[]): Promi
     console.log(`📅 Date range: ${transformed[0].date.toDateString()} to ${transformed[transformed.length - 1].date.toDateString()}`);
   }
   
-  // TEMPORARILY DISABLED: Stats enhancement for debugging
-  // TODO: Re-enable after confirming basic functionality works
-  /*
+  // Enhance matches with real stats from API-Football.com
   try {
     console.log(`🔍 Enhancing matches with team stats and H2H data...`);
     const enhancedMatches = await enhanceMatchesWithStats(transformed);
@@ -322,7 +320,4 @@ export async function transformOddsAPIMatches(apiMatches: OddsAPIMatch[]): Promi
     console.warn('⚠️ Stats enhancement failed, using basic match data:', error);
     return transformed;
   }
-  */
-  
-  return transformed;
 }
