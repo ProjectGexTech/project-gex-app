@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { LeagueCategory, LeagueMetadata } from './leagueConfig';
+import { SportType, LeagueMetadata } from './leagueConfig';
 
 export interface DateRangeFilter {
   start: Date;
@@ -7,33 +7,35 @@ export interface DateRangeFilter {
 }
 
 export interface FilterWizardState {
-  // Step 1: Sport (defaulted to Football)
-  sport: 'football';
+  // Step 1: Odds Range (Required - Root Filter)
+  oddsMin: number;
+  oddsMax: number;
+  oddsSelected: boolean; // Track if user has selected odds
   
-  // Step 2: League Category
-  leagueCategory: LeagueCategory | null;
+  // Step 2: Primary Bookmaker (comes after odds, before sport)
+  primaryBookmaker: string;
   
-  // Step 3: Specific Leagues
-  selectedLeagues: string[]; // League keys (e.g., 'soccer_epl')
+  // Step 3: Sport Type (Optional)
+  selectedSport: SportType | null; // null means ALL sports
   
-  // Step 4: Dependent Filters
+  // Step 4: Specific Leagues (Optional)
+  selectedLeagues: string[]; // League keys (e.g., 'soccer_epl'). Empty means ALL leagues
+  
+  // Additional Filters
   season: string | null;
   dateRange: DateRangeFilter;
   selectedMarkets: string[];
   selectedRegions: string[]; // Region IDs (e.g., ['uk', 'eu'])
   selectedBookmakers: string[]; // Specific bookmaker keys
   
-  // Step 5: Advanced Options (optional)
-  oddsMin: number;
-  oddsMax: number;
-  primaryBookmaker: string;
-  
   // UI State
   currentStep: number;
   isValidToFetch: boolean;
   
   // Actions
-  setLeagueCategory: (category: LeagueCategory | null) => void;
+  setOddsRange: (min: number, max: number) => void;
+  setPrimaryBookmaker: (bookmaker: string) => void;
+  setSelectedSport: (sport: SportType | null) => void;
   toggleLeague: (leagueKey: string) => void;
   setSelectedLeagues: (leagues: string[]) => void;
   setSeason: (season: string) => void;
@@ -41,10 +43,7 @@ export interface FilterWizardState {
   toggleMarket: (marketId: string) => void;
   toggleRegion: (regionId: string) => void;
   toggleBookmaker: (bookmakerKey: string) => void;
-  setOddsRange: (min: number, max: number) => void;
-  setPrimaryBookmaker: (bookmaker: string) => void;
   resetFilters: () => void;
-  resetDependentFilters: () => void;
   validateFilters: () => void;
   getFilterSummary: () => string;
 }
@@ -55,26 +54,36 @@ const DEFAULT_DATE_RANGE: DateRangeFilter = {
 };
 
 export const useFilterWizardStore = create<FilterWizardState>((set, get) => ({
-  // Initial State
-  sport: 'football',
-  leagueCategory: null,
-  selectedLeagues: [],
+  // Initial State - Odds must be selected first
+  oddsMin: 1.5,
+  oddsMax: 3.0,
+  oddsSelected: true, // Default to true for now
+  primaryBookmaker: 'Pinnacle',
+  selectedSport: null, // null = ALL sports
+  selectedLeagues: [], // empty = ALL leagues
   season: null,
   dateRange: DEFAULT_DATE_RANGE,
   selectedMarkets: ['h2h', 'totals'],
   selectedRegions: ['uk', 'eu'], // Default to UK and EU bookmakers
   selectedBookmakers: [],
-  oddsMin: 1.2,
-  oddsMax: 3.0,
-  primaryBookmaker: 'Bet365',
   currentStep: 1,
-  isValidToFetch: false,
+  isValidToFetch: true, // Can fetch with just odds selected
   
   // Actions
-  setLeagueCategory: (category) => {
-    set({ leagueCategory: category });
-    // Reset selected leagues when category changes
-    if (category !== get().leagueCategory) {
+  setOddsRange: (min, max) => {
+    set({ oddsMin: min, oddsMax: max, oddsSelected: true });
+    get().validateFilters();
+  },
+  
+  setPrimaryBookmaker: (bookmaker) => {
+    set({ primaryBookmaker: bookmaker });
+    get().validateFilters();
+  },
+  
+  setSelectedSport: (sport) => {
+    set({ selectedSport: sport });
+    // Reset selected leagues when sport changes
+    if (sport !== get().selectedSport) {
       set({ selectedLeagues: [] });
     }
     get().validateFilters();
@@ -131,44 +140,28 @@ export const useFilterWizardStore = create<FilterWizardState>((set, get) => ({
     get().validateFilters();
   },
   
-  setOddsRange: (min, max) => {
-    set({ oddsMin: min, oddsMax: max });
-  },
-  
-  setPrimaryBookmaker: (bookmaker) => {
-    set({ primaryBookmaker: bookmaker });
-  },
-  
   resetFilters: () => {
     set({
-      leagueCategory: null,
+      oddsMin: 1.5,
+      oddsMax: 3.0,
+      oddsSelected: true,
+      primaryBookmaker: 'Pinnacle',
+      selectedSport: null,
       selectedLeagues: [],
       season: null,
       dateRange: DEFAULT_DATE_RANGE,
       selectedMarkets: ['h2h', 'totals'],
       selectedRegions: ['uk', 'eu'],
       selectedBookmakers: [],
-      oddsMin: 1.2,
-      oddsMax: 3.0,
-      isValidToFetch: false,
+      isValidToFetch: true,
     });
-  },
-  
-  resetDependentFilters: () => {
-    // Keep "safe" filters like date range and markets
-    // Only reset league-specific ones
-    set({
-      season: null,
-    });
-    get().validateFilters();
   },
   
   validateFilters: () => {
     const state = get();
+    // Only odds selection is required
     const isValid = 
-      state.sport === 'football' &&
-      state.leagueCategory !== null &&
-      state.selectedLeagues.length > 0 &&
+      state.oddsSelected &&
       state.selectedMarkets.length > 0;
     
     set({ isValidToFetch: isValid });
@@ -178,26 +171,24 @@ export const useFilterWizardStore = create<FilterWizardState>((set, get) => ({
     const state = get();
     const parts: string[] = [];
     
-    parts.push('Football');
+    parts.push(`Odds: ${state.oddsMin.toFixed(2)}-${state.oddsMax.toFixed(2)}`);
     
-    if (state.leagueCategory) {
-      const categoryLabels: Record<LeagueCategory, string> = {
-        domestic: 'Domestic League',
-        cup: 'Cup',
-        international: 'International',
+    if (state.selectedSport) {
+      const sportLabels: Record<SportType, string> = {
+        football: 'Football',
+        basketball: 'Basketball',
       };
-      parts.push(categoryLabels[state.leagueCategory]);
+      parts.push(sportLabels[state.selectedSport]);
+    } else {
+      parts.push('All Sports');
     }
     
-    if (state.selectedLeagues.length === 1) {
-      // Will need to get league name from config
+    if (state.selectedLeagues.length === 0) {
+      parts.push('All Leagues');
+    } else if (state.selectedLeagues.length === 1) {
       parts.push('1 League');
-    } else if (state.selectedLeagues.length > 1) {
+    } else {
       parts.push(`${state.selectedLeagues.length} Leagues`);
-    }
-    
-    if (state.season) {
-      parts.push(`Season ${state.season}`);
     }
     
     parts.push(`Next ${state.dateRange.days} days`);
