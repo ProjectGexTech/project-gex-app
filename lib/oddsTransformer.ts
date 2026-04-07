@@ -1,6 +1,5 @@
 // Utility to transform Odds API data into our app's format
 import { Match, Team, Odds, Prediction, TeamForm, HeadToHead } from './types';
-import { enhanceMatchesWithStats } from './statsEnhancer';
 
 interface OddsAPIMatch {
   id: string;
@@ -281,6 +280,7 @@ export function transformOddsAPIMatch(apiMatch: OddsAPIMatch): Match {
 
   return {
     id: apiMatch.id,
+    sportKey: apiMatch.sport_key,
     homeTeam,
     awayTeam,
     date: new Date(apiMatch.commence_time),
@@ -309,15 +309,6 @@ export async function transformOddsAPIMatches(apiMatches: OddsAPIMatch[]): Promi
   if (transformed.length > 0) {
     console.log(`📅 Date range: ${transformed[0].date.toDateString()} to ${transformed[transformed.length - 1].date.toDateString()}`);
   }
-  
-  // Enhance matches with real stats from API-Football.com
-  try {
-    console.log(`🔍 Enhancing matches with team stats and H2H data...`);
-    const enhancedMatches = await enhanceMatchesWithStats(transformed);
-    console.log(`✨ Enhanced ${enhancedMatches.length} matches with real stats`);
-    return enhancedMatches;
-  } catch (error) {
-    console.warn('⚠️ Stats enhancement failed, using basic match data:', error);
-    return transformed;
-  }
+
+  return transformed;
 }

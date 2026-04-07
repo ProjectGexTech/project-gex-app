@@ -1,6 +1,6 @@
 // Enhanced Odds Transformer with Real Stats Integration
 import { footballStatsService, APIFootballTeamStats, APIFootballH2H } from './footballStatsAPI';
-import { Match, TeamForm, HeadToHead, Prediction, ConfidenceLevel } from './types';
+import { Match, TeamForm, HeadToHead, Prediction, ConfidenceLevel, DataQualityInfo } from './types';
 
 interface OddsAPIMatch {
   id: string;
@@ -216,6 +216,8 @@ export async function enhanceMatchWithStats(match: Partial<Match>): Promise<Matc
     const homeTeamName = match.homeTeam?.name || '';
     const awayTeamName = match.awayTeam?.name || '';
 
+    console.log(`🔄 [${homeTeamName} vs ${awayTeamName}] Enhancing with real stats...`);
+
     // Fetch real stats in parallel
     const [homeStats, awayStats, h2hData] = await Promise.all([
       footballStatsService.fetchTeamStats(homeTeamName),
@@ -228,6 +230,48 @@ export async function enhanceMatchWithStats(match: Partial<Match>): Promise<Matc
     const awayForm = transformTeamStats(awayStats, false);
     const h2h = transformH2H(h2hData, homeTeamName, awayTeamName);
 
+    const homeStatsSource = footballStatsService.getDataSource(`stats_${homeTeamName}`)?.source ?? 'real';
+    const awayStatsSource = footballStatsService.getDataSource(`stats_${awayTeamName}`)?.source ?? 'real';
+    const homeFormSource = footballStatsService.getDataSource(`recent_form_${homeTeamName}`)?.source ?? 'real';
+    const awayFormSource = footballStatsService.getDataSource(`recent_form_${awayTeamName}`)?.source ?? 'real';
+    const h2hSource = footballStatsService.getDataSource(`h2h_${homeTeamName}_${awayTeamName}`)?.source ?? 'real';
+
+    const homeStatsReason = footballStatsService.getDataSource(`stats_${homeTeamName}`)?.reason;
+    const awayStatsReason = footballStatsService.getDataSource(`stats_${awayTeamName}`)?.reason;
+    const homeFormReason = footballStatsService.getDataSource(`recent_form_${homeTeamName}`)?.reason;
+    const awayFormReason = footballStatsService.getDataSource(`recent_form_${awayTeamName}`)?.reason;
+    const h2hReason = footballStatsService.getDataSource(`h2h_${homeTeamName}_${awayTeamName}`)?.reason;
+
+    const formSource = homeFormSource === 'mock' || awayFormSource === 'mock' || homeStatsSource === 'mock' || awayStatsSource === 'mock'
+      ? 'mock'
+      : 'real';
+    const overallSource = formSource === 'mock' || h2hSource === 'mock' ? 'mock' : 'real';
+
+    const dataQuality: DataQualityInfo = {
+      form: formSource,
+      h2h: h2hSource,
+      overall: overallSource,
+      formReason:
+        formSource === 'mock'
+          ? [homeFormReason, awayFormReason, homeStatsReason, awayStatsReason].filter(Boolean).join(' | ') || 'Form data fell back to generated mock statistics'
+          : undefined,
+      h2hReason:
+        h2hSource === 'mock'
+          ? h2hReason || 'Head-to-head data fell back to generated mock results'
+          : undefined,
+      overallReason:
+        overallSource === 'mock'
+          ? 'At least one analysis input used fallback/mock data'
+          : 'All analysis inputs came from live API data',
+      notes: [
+        ...(overallSource === 'mock' ? ['Fallback/mock data used for one or more analysis inputs'] : []),
+        ...(h2hSource === 'mock' ? ['Head-to-head data used fallback data'] : []),
+        ...(formSource === 'mock' ? ['Form/statistics used fallback data'] : []),
+      ],
+    };
+
+    console.log(`✅ [${homeTeamName} vs ${awayTeamName}] Enhanced: ${h2h.totalMeetings} H2H games, Form: ${homeForm.wins}W-${homeForm.draws}D vs ${awayForm.wins}W-${awayForm.draws}D`);
+
     // Calculate enhanced prediction
     const prediction = calculateEnhancedPrediction(homeForm, awayForm, h2h);
 
@@ -238,12 +282,21 @@ export async function enhanceMatchWithStats(match: Partial<Match>): Promise<Matc
         away: awayForm,
       },
       h2h,
+      dataQuality,
       prediction,
     } as Match;
   } catch (error) {
-    console.warn('Failed to enhance match, using original data:', error);
+    console.warn(`⚠️ [${match.homeTeam?.name} vs ${match.awayTeam?.name}] Stats enhancement failed:`, error);
     // Return match as-is if enhancement fails
-    return match as Match;
+    return {
+      ...match,
+      dataQuality: {
+        form: 'mock',
+        h2h: 'mock',
+        overall: 'mock',
+        notes: ['Stats enhancement failed; fallback/mock data assumed'],
+      },
+    } as Match;
   }
 }
 

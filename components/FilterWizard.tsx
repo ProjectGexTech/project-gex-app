@@ -2,7 +2,14 @@
 
 import { useFilterWizardStore } from '@/lib/filterWizardStore';
 import { SPORTS, LEAGUES_CONFIG, getLeaguesBySport, getAllLeagues, getLeagueByKey, SportType } from '@/lib/leagueConfig';
-import { MARKET_OPTIONS, MARKET_CATEGORIES, getMarketsByCategory, getAvailabilityColor, getAvailabilityLabel } from '@/lib/marketConfig';
+import {
+  getMarketsByCategory,
+  getAvailabilityColor,
+  getAvailabilityLabel,
+  getMarketCategoriesBySport,
+  getMarketById,
+} from '@/lib/marketConfig';
+import { resolveMaxMarketsForSelection } from '@/lib/marketOrchestration';
 import { REGIONS, BOOKMAKERS, getBookmakersByRegion, getBookmakerAvailabilityColor, getBookmakerAvailabilityLabel } from '@/lib/bookmakersConfig';
 import { Trophy, Calendar, Target, TrendingUp, CheckCircle2, ChevronRight, Info, AlertCircle, Building2 } from 'lucide-react';
 import { useState } from 'react';
@@ -12,6 +19,7 @@ interface FilterWizardProps {
   onFetchData: (config: {
     leagues: string[];
     markets: string[];
+    selectedSport: SportType | null;
     dateRange: { start: Date; days: number };
     regions: string[];
     bookmakers: string[];
@@ -51,6 +59,7 @@ export default function FilterWizard({ onFetchData, isLoading = false }: FilterW
     setSelectedLeagues,
     setSeason,
     setDateRange,
+    setSelectedMarkets,
     toggleMarket,
     toggleRegion,
     toggleBookmaker,
@@ -95,7 +104,8 @@ export default function FilterWizard({ onFetchData, isLoading = false }: FilterW
 
     await onFetchData({
       leagues: leaguesToFetch,
-      markets: selectedMarkets,
+      markets: marketResolution.requestedMarkets,
+      selectedSport,
       dateRange,
       regions: selectedRegions,
       bookmakers: selectedBookmakers,
@@ -121,6 +131,37 @@ export default function FilterWizard({ onFetchData, isLoading = false }: FilterW
   const selectedLeagueNames = selectedLeagues
     .map(key => getLeagueByKey(key)?.name)
     .filter(Boolean);
+
+  const marketCategories = getMarketCategoriesBySport(selectedSport);
+
+  const leaguesForMarketResolution = selectedLeagues.length > 0
+    ? selectedLeagues
+    : (selectedSport ? getLeaguesBySport(selectedSport).map(league => league.key) : getAllLeagues().map(league => league.key));
+
+  const marketResolution = React.useMemo(() => (
+    resolveMaxMarketsForSelection({
+      selectedSport,
+      selectedLeagueKeys: leaguesForMarketResolution,
+      selectedMarketIds: selectedMarkets,
+      selectedRegions,
+      selectedBookmakers,
+    })
+  ), [selectedSport, leaguesForMarketResolution, selectedMarkets, selectedRegions, selectedBookmakers]);
+
+  React.useEffect(() => {
+    const availableSet = new Set(marketResolution.requestedMarkets);
+    const validMarkets = selectedMarkets.filter(market => availableSet.has(market));
+    const fallbackMarkets = marketResolution.fallbackMarkets;
+
+    if (validMarkets.length !== selectedMarkets.length) {
+      setSelectedMarkets(validMarkets.length > 0 ? validMarkets : fallbackMarkets);
+      return;
+    }
+
+    if (selectedMarkets.length === 0 && fallbackMarkets.length > 0) {
+      setSelectedMarkets(fallbackMarkets);
+    }
+  }, [marketResolution.requestedMarkets, marketResolution.fallbackMarkets, selectedMarkets, setSelectedMarkets]);
 
   return (
     <div className="bg-white rounded-xl shadow-lg border border-slate-200 p-6 mb-6">
@@ -610,10 +651,22 @@ export default function FilterWizard({ onFetchData, isLoading = false }: FilterW
               </div>
             </div>
 
+            <div className="mb-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
+              <div className="text-xs font-semibold text-slate-800 mb-1">
+                Requested {marketResolution.requestedCount} market{marketResolution.requestedCount !== 1 ? 's' : ''}, {marketResolution.unavailableCount} unavailable in current context.
+              </div>
+              {marketResolution.excludedMarkets.length > 0 && (
+                <div className="text-xs text-slate-600">
+                  Skipped: {marketResolution.excludedMarkets.slice(0, 3).map((item) => getMarketById(item.marketId, selectedSport)?.shortLabel || item.marketId).join(', ')}
+                  {marketResolution.excludedMarkets.length > 3 ? ` +${marketResolution.excludedMarkets.length - 3}` : ''}
+                </div>
+              )}
+            </div>
+
             {/* Market Categories */}
             <div className="space-y-3">
-              {MARKET_CATEGORIES.map((category) => {
-                const marketsInCategory = getMarketsByCategory(category.id);
+              {marketCategories.map((category) => {
+                const marketsInCategory = getMarketsByCategory(category.id, selectedSport);
                 const selectedInCategory = marketsInCategory.filter(m => selectedMarkets.includes(m.id)).length;
                 const isExpanded = expandedMarketCategory === category.id;
                 
@@ -646,16 +699,21 @@ export default function FilterWizard({ onFetchData, isLoading = false }: FilterW
                         <div className="p-3 space-y-2 bg-white">
                           {marketsInCategory.map((market) => {
                             const isSelected = selectedMarkets.includes(market.id);
+                            const marketStatus = marketResolution.marketStatuses[market.id] || 'active';
+                            const isUnavailable = marketStatus === 'unavailable';
                             
                             return (
                               <button
                                 key={market.id}
-                                onClick={() => toggleMarket(market.id)}
+                                onClick={() => !isUnavailable && toggleMarket(market.id)}
                                 className={`w-full text-left border-2 rounded-lg p-3 transition-all ${
                                   isSelected
                                     ? 'border-blue-500 bg-blue-50 shadow-sm'
-                                    : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                                    : isUnavailable
+                                      ? 'border-slate-200 bg-slate-100 opacity-70 cursor-not-allowed'
+                                      : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'
                                 }`}
+                                disabled={isUnavailable}
                               >
                                 <div className="flex items-start justify-between gap-3">
                                   <div className="flex items-start gap-2 flex-1">
@@ -664,6 +722,15 @@ export default function FilterWizard({ onFetchData, isLoading = false }: FilterW
                                       <div className="flex items-center gap-2 mb-1">
                                         <span className={`text-sm font-bold ${isSelected ? 'text-blue-900' : 'text-slate-900'}`}>
                                           {market.label}
+                                        </span>
+                                        <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
+                                          marketStatus === 'active'
+                                            ? 'bg-green-100 text-green-700 border-green-200'
+                                            : marketStatus === 'limited'
+                                              ? 'bg-amber-100 text-amber-700 border-amber-200'
+                                              : 'bg-slate-200 text-slate-600 border-slate-300'
+                                        }`}>
+                                          {marketStatus === 'active' ? 'Active' : marketStatus === 'limited' ? 'Limited' : 'Unavailable'}
                                         </span>
                                       </div>
                                       <p className="text-xs text-slate-600 mb-2">

@@ -3,7 +3,7 @@ import { Match, BettingSelection, BookingCode, SearchFilters, DetailedAIPredicti
 import { filterMatches } from './dummyData';
 import { oddsAPIService } from './oddsAPI';
 import { transformOddsAPIMatches } from './oddsTransformer';
-import { footballStatsService } from './footballStatsAPI';
+import { enhanceMatchWithStats } from './statsEnhancer';
 import { generateAdvancedPrediction, getPredictionCacheKey, isCacheValid } from './advancedPredictionEngine';
 
 interface GextenStore {
@@ -37,6 +37,8 @@ interface GextenStore {
   fetchSelectedLeagues: (config: {
     leagues: string[];
     markets: string[];
+    marketsByLeague?: Record<string, string[]>;
+    fallbackMarketsByLeague?: Record<string, string[]>;
     dateRange: { start: Date; days: number };
     regions?: string;
     bookmakers?: string[];
@@ -173,7 +175,9 @@ export const useGextenStore = create<GextenStore>((set, get) => ({
         config.markets,
         config.dateRange.days,
         config.regions || 'uk,eu',
-        config.bookmakers || []
+        config.bookmakers || [],
+        config.marketsByLeague,
+        config.fallbackMarketsByLeague
       );
       console.log(`📦 Received ${apiMatches.length} matches from API`);
       
@@ -322,7 +326,7 @@ export const useGextenStore = create<GextenStore>((set, get) => ({
   fetchDetailedPrediction: async (matchId: string) => {
     // Check if already cached
     const cached = get().aiPredictionCache.get(matchId);
-    if (cached) {
+    if (cached && cached.dataQuality) {
       console.log(`✅ Using cached prediction for match ${matchId}`);
       return;
     }
@@ -337,7 +341,7 @@ export const useGextenStore = create<GextenStore>((set, get) => ({
       if (cachedData) {
         try {
           const { prediction, timestamp } = JSON.parse(cachedData);
-          if (isCacheValid(timestamp)) {
+          if (isCacheValid(timestamp) && prediction?.dataQuality) {
             console.log(`✅ Using localStorage cached prediction for match ${matchId}`);
             set(state => {
               const newCache = new Map(state.aiPredictionCache);
@@ -366,8 +370,11 @@ export const useGextenStore = create<GextenStore>((set, get) => ({
 
       console.log(`🤖 Generating advanced AI prediction for ${match.homeTeam.name} vs ${match.awayTeam.name}...`);
 
+      // Enrich only this clicked match with real stats/H2H (on-demand)
+      const enrichedMatch = await enhanceMatchWithStats(match);
+
       // Generate prediction using advanced engine
-      const predictionResult = generateAdvancedPrediction(match);
+      const predictionResult = generateAdvancedPrediction(enrichedMatch);
 
       // Convert to DetailedAIPrediction format
       const detailedPrediction: DetailedAIPrediction = {
@@ -378,30 +385,30 @@ export const useGextenStore = create<GextenStore>((set, get) => ({
         predictedWinner: predictionResult.predictedOutcome,
         form: {
           home: {
-            wins: match.form?.home?.wins || 0,
-            draws: match.form?.home?.draws || 0,
-            losses: match.form?.home?.losses || 0,
-            goalsScored: match.form?.home?.goalsScored || 0,
-            goalsConceded: match.form?.home?.goalsConceded || 0,
-            formString: match.form?.home?.form || 'N/A',
+            wins: enrichedMatch.form?.home?.wins || 0,
+            draws: enrichedMatch.form?.home?.draws || 0,
+            losses: enrichedMatch.form?.home?.losses || 0,
+            goalsScored: enrichedMatch.form?.home?.goalsScored || 0,
+            goalsConceded: enrichedMatch.form?.home?.goalsConceded || 0,
+            formString: enrichedMatch.form?.home?.form || 'N/A',
           },
           away: {
-            wins: match.form?.away?.wins || 0,
-            draws: match.form?.away?.draws || 0,
-            losses: match.form?.away?.losses || 0,
-            goalsScored: match.form?.away?.goalsScored || 0,
-            goalsConceded: match.form?.away?.goalsConceded || 0,
-            formString: match.form?.away?.form || 'N/A',
+            wins: enrichedMatch.form?.away?.wins || 0,
+            draws: enrichedMatch.form?.away?.draws || 0,
+            losses: enrichedMatch.form?.away?.losses || 0,
+            goalsScored: enrichedMatch.form?.away?.goalsScored || 0,
+            goalsConceded: enrichedMatch.form?.away?.goalsConceded || 0,
+            formString: enrichedMatch.form?.away?.form || 'N/A',
           },
         },
         h2h: {
-          totalGames: match.h2h?.totalMeetings || 0,
-          homeWins: match.h2h?.homeWins || 0,
-          awayWins: match.h2h?.awayWins || 0,
-          draws: match.h2h?.draws || 0,
+          totalGames: enrichedMatch.h2h?.totalMeetings || 0,
+          homeWins: enrichedMatch.h2h?.homeWins || 0,
+          awayWins: enrichedMatch.h2h?.awayWins || 0,
+          draws: enrichedMatch.h2h?.draws || 0,
           homeGoalsScored: 0,
           awayGoalsScored: 0,
-          games: match.h2h?.games || [],
+          games: enrichedMatch.h2h?.games || [],
         },
         breakdown: {
           formScore: {
@@ -420,6 +427,7 @@ export const useGextenStore = create<GextenStore>((set, get) => ({
         recommendedBet: predictionResult.recommendedBet,
         explanation: predictionResult.explanation,
         factors: predictionResult.factors,
+        dataQuality: enrichedMatch.dataQuality,
       };
 
       // Cache the prediction in memory

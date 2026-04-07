@@ -21,9 +21,55 @@ export default function MatchCard({ match }: MatchCardProps) {
   } = useGextenStore();
   
   const [showAIAnalysis, setShowAIAnalysis] = useState(false);
+  const isBasketball =
+    match.sportKey?.startsWith('basketball_') ||
+    /nba|wnba|ncaa|euroleague|basketball/i.test(match.league);
   const isSelected = selectedMatches.has(match.id);
   const detailedPrediction = getDetailedPrediction(match.id);
+  const dataQuality = detailedPrediction?.dataQuality ?? match.dataQuality;
+  const showRealForm = dataQuality?.form === 'real';
+  const showRealH2H = dataQuality?.h2h === 'real';
   const isLoading = isLoadingPrediction(match.id);
+  const supportsDraw = !isBasketball;
+
+  const normalizeResultChar = (result: string): 'W' | 'L' | 'D' => {
+    const normalized = result.toUpperCase();
+    if (normalized === 'W') return 'W';
+    if (normalized === 'D') return supportsDraw ? 'D' : 'L';
+    return 'L';
+  };
+
+  const extractLastFiveForm = (formString?: string): Array<'W' | 'L' | 'D'> => {
+    if (!formString || formString === 'N/A') return [];
+    return formString
+      .split('')
+      .map(normalizeResultChar)
+      .slice(0, 5);
+  };
+
+  const getTeamH2HResult = (game: any, teamName: string): 'W' | 'L' | 'D' => {
+    if (game.homeGoals === game.awayGoals) return supportsDraw ? 'D' : 'L';
+    const teamIsHome = game.homeTeam === teamName;
+    const teamWon = teamIsHome ? game.homeGoals > game.awayGoals : game.awayGoals > game.homeGoals;
+    return teamWon ? 'W' : 'L';
+  };
+
+  const homeFormLastFive = showRealForm ? extractLastFiveForm(detailedPrediction?.form.home.formString) : [];
+  const awayFormLastFive = showRealForm ? extractLastFiveForm(detailedPrediction?.form.away.formString) : [];
+  const hasRealFormSection = homeFormLastFive.length > 0 || awayFormLastFive.length > 0;
+
+  const h2hGamesLastFive = showRealH2H
+    ? (detailedPrediction?.h2h.games || []).slice(0, 5)
+    : [];
+  const homeH2HLastFive = h2hGamesLastFive.map((game) => getTeamH2HResult(game, match.homeTeam.name));
+  const awayH2HLastFive = h2hGamesLastFive.map((game) => getTeamH2HResult(game, match.awayTeam.name));
+  const hasRealH2HSection = h2hGamesLastFive.length > 0;
+  const explanationLines = (detailedPrediction?.explanation || []).filter((line) => {
+    if (!dataQuality) return true;
+    if (dataQuality.form === 'mock' && /recent form/i.test(line)) return false;
+    if (dataQuality.h2h === 'mock' && /head-to-head/i.test(line)) return false;
+    return true;
+  });
   
   const handleShowAIAnalysis = async () => {
     if (!showAIAnalysis && !detailedPrediction) {
@@ -66,18 +112,6 @@ export default function MatchCard({ match }: MatchCardProps) {
     return <Minus className="w-4 h-4 text-gray-600" />;
   };
   
-  const getResultColor = (result: 'H' | 'A' | 'D') => {
-    if (result === 'H') return 'bg-green-600 text-white';
-    if (result === 'A') return 'bg-red-600 text-white';
-    return 'bg-slate-400 text-white';
-  };
-  
-  const getResultLabel = (result: 'H' | 'A' | 'D') => {
-    if (result === 'H') return 'W';
-    if (result === 'A') return 'L';
-    return 'D';
-  };
-  
   return (
     <div className={`bg-white rounded-2xl border-2 p-6 hover:shadow-xl transition-all duration-300 ${
       isSelected ? 'border-blue-600 shadow-xl shadow-blue-600/20' : 'border-slate-200 shadow-sm hover:border-blue-300'
@@ -104,7 +138,7 @@ export default function MatchCard({ match }: MatchCardProps) {
           <div className="flex items-center gap-2 flex-1">
             <span className="font-bold text-lg text-slate-900">{match.homeTeam.name}</span>
           </div>
-          {match.form?.home?.form && match.form.home.form !== 'N/A' && (
+          {showRealForm && match.form?.home?.form && match.form.home.form !== 'N/A' && (
             <span className="text-sm text-slate-600 font-mono bg-slate-100 px-3 py-1 rounded-md">
               {match.form.home.form}
             </span>
@@ -117,7 +151,7 @@ export default function MatchCard({ match }: MatchCardProps) {
           <div className="flex items-center gap-2 flex-1">
             <span className="font-bold text-lg text-slate-900">{match.awayTeam.name}</span>
           </div>
-          {match.form?.away?.form && match.form.away.form !== 'N/A' && (
+          {showRealForm && match.form?.away?.form && match.form.away.form !== 'N/A' && (
             <span className="text-sm text-slate-600 font-mono bg-slate-100 px-3 py-1 rounded-md">
               {match.form.away.form}
             </span>
@@ -132,9 +166,9 @@ export default function MatchCard({ match }: MatchCardProps) {
           <div>
             <div className="text-xs font-bold text-slate-600 mb-3 flex items-center gap-2">
               <Activity className="w-4 h-4 text-blue-600" />
-              MATCH WINNER (1X2)
+              {isBasketball ? 'GAME WINNER (MONEYLINE)' : 'MATCH WINNER (1X2)'}
             </div>
-            <div className="grid grid-cols-3 gap-3">
+            <div className={`grid ${isBasketball ? 'grid-cols-2' : 'grid-cols-3'} gap-3`}>
               <button
                 onClick={() => handleSelectOutcome('h2h', 'home', match.odds.h2h!.home)}
                 className="bg-blue-50 hover:bg-blue-100 border-2 border-blue-200 hover:border-blue-600 rounded-xl p-4 text-center transition-all"
@@ -142,13 +176,15 @@ export default function MatchCard({ match }: MatchCardProps) {
                 <div className="text-xs text-blue-700 font-bold mb-1">HOME</div>
                 <div className="text-2xl font-bold text-blue-900">{match.odds.h2h.home.toFixed(2)}</div>
               </button>
-              <button
-                onClick={() => handleSelectOutcome('h2h', 'draw', match.odds.h2h!.draw)}
-                className="bg-slate-50 hover:bg-slate-100 border-2 border-slate-200 hover:border-blue-600 rounded-xl p-4 text-center transition-all"
-              >
-                <div className="text-xs text-slate-700 font-bold mb-1">DRAW</div>
-                <div className="text-2xl font-bold text-slate-900">{match.odds.h2h.draw.toFixed(2)}</div>
-              </button>
+              {!isBasketball && (
+                <button
+                  onClick={() => handleSelectOutcome('h2h', 'draw', match.odds.h2h!.draw)}
+                  className="bg-slate-50 hover:bg-slate-100 border-2 border-slate-200 hover:border-blue-600 rounded-xl p-4 text-center transition-all"
+                >
+                  <div className="text-xs text-slate-700 font-bold mb-1">DRAW</div>
+                  <div className="text-2xl font-bold text-slate-900">{match.odds.h2h.draw.toFixed(2)}</div>
+                </button>
+              )}
               <button
                 onClick={() => handleSelectOutcome('h2h', 'away', match.odds.h2h!.away)}
                 className="bg-blue-50 hover:bg-blue-100 border-2 border-blue-200 hover:border-blue-600 rounded-xl p-4 text-center transition-all"
@@ -165,21 +201,21 @@ export default function MatchCard({ match }: MatchCardProps) {
           <div>
             <div className="text-xs font-bold text-slate-600 mb-3 flex items-center gap-2">
               <Activity className="w-4 h-4 text-green-600" />
-              OVER/UNDER 2.5 GOALS
+              {isBasketball ? 'OVER/UNDER TOTAL POINTS' : 'OVER/UNDER 2.5 GOALS'}
             </div>
             <div className="grid grid-cols-2 gap-3">
               <button
                 onClick={() => handleSelectOutcome('h2h', 'home', match.odds.ou25!.over)}
                 className="bg-green-50 hover:bg-green-100 border-2 border-green-200 hover:border-green-600 rounded-xl p-4 text-center transition-all"
               >
-                <div className="text-xs text-green-700 font-bold mb-1">OVER 2.5</div>
+                <div className="text-xs text-green-700 font-bold mb-1">{isBasketball ? 'OVER' : 'OVER 2.5'}</div>
                 <div className="text-2xl font-bold text-green-900">{match.odds.ou25.over.toFixed(2)}</div>
               </button>
               <button
                 onClick={() => handleSelectOutcome('h2h', 'away', match.odds.ou25!.under)}
                 className="bg-orange-50 hover:bg-orange-100 border-2 border-orange-200 hover:border-orange-600 rounded-xl p-4 text-center transition-all"
               >
-                <div className="text-xs text-orange-700 font-bold mb-1">UNDER 2.5</div>
+                <div className="text-xs text-orange-700 font-bold mb-1">{isBasketball ? 'UNDER' : 'UNDER 2.5'}</div>
                 <div className="text-2xl font-bold text-orange-900">{match.odds.ou25.under.toFixed(2)}</div>
               </button>
             </div>
@@ -274,168 +310,105 @@ export default function MatchCard({ match }: MatchCardProps) {
             </div>
           </div>
 
-          {/* Form Analysis (Last 10 Games) */}
+          {/* Form Analysis (Last 5 Games) */}
           <div className="bg-white rounded-xl p-5 border-2 border-slate-200 shadow-sm">
             <div className="flex items-center gap-2 mb-4">
               <Target className="w-5 h-5 text-blue-600" />
-              <h3 className="font-bold text-slate-900">Recent Form (Last 10 Games)</h3>
+              <h3 className="font-bold text-slate-900">Recent Form (Last 5 {isBasketball ? 'Games' : 'Matches'})</h3>
             </div>
-            
-            {/* Home Team Form */}
-            <div className="mb-4 pb-4 border-b border-slate-200">
-              <div className="flex items-center justify-between mb-2">
-                <span className="font-semibold text-slate-900">{match.homeTeam.name}</span>
-                <div className="flex gap-1">
-                  {(detailedPrediction.form.home.formString && detailedPrediction.form.home.formString !== 'N/A' 
-                    ? detailedPrediction.form.home.formString.split('') 
-                    : []).map((char, idx) => (
-                    <span
-                      key={idx}
-                      className={`w-6 h-6 rounded flex items-center justify-center text-xs font-bold ${
-                        char === 'W' ? 'bg-green-600 text-white' :
-                        char === 'D' ? 'bg-slate-400 text-white' :
-                        'bg-red-600 text-white'
-                      }`}
-                    >
-                      {char}
-                    </span>
-                  ))}
-                </div>
+            {hasRealFormSection ? (
+              <div className="space-y-3">
+                {homeFormLastFive.length > 0 && (
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold text-slate-900">{match.homeTeam.name}</span>
+                    <div className="flex gap-1">
+                      {homeFormLastFive.map((char, idx) => (
+                        <span
+                          key={`home-form-${idx}`}
+                          className={`w-6 h-6 rounded flex items-center justify-center text-xs font-bold ${
+                            char === 'W' ? 'bg-green-600 text-white' :
+                            char === 'D' ? 'bg-slate-400 text-white' :
+                            'bg-red-600 text-white'
+                          }`}
+                        >
+                          {char}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {awayFormLastFive.length > 0 && (
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold text-slate-900">{match.awayTeam.name}</span>
+                    <div className="flex gap-1">
+                      {awayFormLastFive.map((char, idx) => (
+                        <span
+                          key={`away-form-${idx}`}
+                          className={`w-6 h-6 rounded flex items-center justify-center text-xs font-bold ${
+                            char === 'W' ? 'bg-green-600 text-white' :
+                            char === 'D' ? 'bg-slate-400 text-white' :
+                            'bg-red-600 text-white'
+                          }`}
+                        >
+                          {char}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
-              <div className="grid grid-cols-5 gap-2 text-center text-sm">
-                <div className="bg-green-50 border border-green-200 rounded-lg p-2">
-                  <div className="text-green-800 font-bold">{detailedPrediction.form.home.wins}</div>
-                  <div className="text-green-600 text-xs">Wins</div>
-                </div>
-                <div className="bg-slate-50 border border-slate-200 rounded-lg p-2">
-                  <div className="text-slate-800 font-bold">{detailedPrediction.form.home.draws}</div>
-                  <div className="text-slate-600 text-xs">Draws</div>
-                </div>
-                <div className="bg-red-50 border border-red-200 rounded-lg p-2">
-                  <div className="text-red-800 font-bold">{detailedPrediction.form.home.losses}</div>
-                  <div className="text-red-600 text-xs">Losses</div>
-                </div>
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-2">
-                  <div className="text-blue-800 font-bold">{detailedPrediction.form.home.goalsScored}</div>
-                  <div className="text-blue-600 text-xs">GF</div>
-                </div>
-                <div className="bg-orange-50 border border-orange-200 rounded-lg p-2">
-                  <div className="text-orange-800 font-bold">{detailedPrediction.form.home.goalsConceded}</div>
-                  <div className="text-orange-600 text-xs">GA</div>
-                </div>
-              </div>
-            </div>
-            
-            {/* Away Team Form */}
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <span className="font-semibold text-slate-900">{match.awayTeam.name}</span>
-                <div className="flex gap-1">
-                  {(detailedPrediction.form.away.formString && detailedPrediction.form.away.formString !== 'N/A' 
-                    ? detailedPrediction.form.away.formString.split('') 
-                    : []).map((char, idx) => (
-                    <span
-                      key={idx}
-                      className={`w-6 h-6 rounded flex items-center justify-center text-xs font-bold ${
-                        char === 'W' ? 'bg-green-600 text-white' :
-                        char === 'D' ? 'bg-slate-400 text-white' :
-                        'bg-red-600 text-white'
-                      }`}
-                    >
-                      {char}
-                    </span>
-                  ))}
-                </div>
-              </div>
-              <div className="grid grid-cols-5 gap-2 text-center text-sm">
-                <div className="bg-green-50 border border-green-200 rounded-lg p-2">
-                  <div className="text-green-800 font-bold">{detailedPrediction.form.away.wins}</div>
-                  <div className="text-green-600 text-xs">Wins</div>
-                </div>
-                <div className="bg-slate-50 border border-slate-200 rounded-lg p-2">
-                  <div className="text-slate-800 font-bold">{detailedPrediction.form.away.draws}</div>
-                  <div className="text-slate-600 text-xs">Draws</div>
-                </div>
-                <div className="bg-red-50 border border-red-200 rounded-lg p-2">
-                  <div className="text-red-800 font-bold">{detailedPrediction.form.away.losses}</div>
-                  <div className="text-red-600 text-xs">Losses</div>
-                </div>
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-2">
-                  <div className="text-blue-800 font-bold">{detailedPrediction.form.away.goalsScored}</div>
-                  <div className="text-blue-600 text-xs">GF</div>
-                </div>
-                <div className="bg-orange-50 border border-orange-200 rounded-lg p-2">
-                  <div className="text-orange-800 font-bold">{detailedPrediction.form.away.goalsConceded}</div>
-                  <div className="text-orange-600 text-xs">GA</div>
-                </div>
-              </div>
-            </div>
+            ) : (
+              <div className="text-sm text-slate-500">Not available</div>
+            )}
           </div>
 
-          {/* Head-to-Head Analysis */}
+          {/* Head-to-Head Analysis (Last 5) */}
           <div className="bg-white rounded-xl p-5 border-2 border-slate-200 shadow-sm">
             <div className="flex items-center gap-2 mb-4">
               <BarChart3 className="w-5 h-5 text-blue-600" />
-              <h3 className="font-bold text-slate-900">Head-to-Head (Last {detailedPrediction.h2h.totalGames} Meetings)</h3>
+              <h3 className="font-bold text-slate-900">Head-to-Head Results (Last 5 {isBasketball ? 'Games' : 'Meetings'})</h3>
             </div>
-            
-            {/* H2H Summary */}
-            <div className="grid grid-cols-3 gap-3 mb-4">
-              <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-center">
-                <div className="text-2xl font-bold text-green-800">{detailedPrediction.h2h.homeWins}</div>
-                <div className="text-xs text-green-600">Home Wins</div>
-              </div>
-              <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-center">
-                <div className="text-2xl font-bold text-slate-800">{detailedPrediction.h2h.draws}</div>
-                <div className="text-xs text-slate-600">Draws</div>
-              </div>
-              <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-center">
-                <div className="text-2xl font-bold text-red-800">{detailedPrediction.h2h.awayWins}</div>
-                <div className="text-xs text-red-600">Away Wins</div>
-              </div>
-            </div>
-            
-            {/* Goals Stats */}
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
-              <div className="flex justify-between items-center">
-                <div className="text-center flex-1">
-                  <div className="text-xl font-bold text-blue-900">{detailedPrediction.h2h.homeGoalsScored}</div>
-                  <div className="text-xs text-blue-600">Goals Scored (Home)</div>
-                </div>
-                <div className="text-blue-400 font-bold">:</div>
-                <div className="text-center flex-1">
-                  <div className="text-xl font-bold text-blue-900">{detailedPrediction.h2h.awayGoalsScored}</div>
-                  <div className="text-xs text-blue-600">Goals Scored (Away)</div>
-                </div>
-              </div>
-            </div>
-            
-            {/* H2H Game History */}
-            <div className="space-y-2">
-              <div className="text-sm font-semibold text-slate-700 mb-2">Match History:</div>
-              {(detailedPrediction.h2h.games && detailedPrediction.h2h.games.length > 0) ? detailedPrediction.h2h.games.map((game, idx) => (
-                <div key={idx} className="bg-slate-50 rounded-lg p-3 border border-slate-200">
-                  <div className="flex items-center justify-between mb-1">
-                    <div className="flex items-center gap-2">
-                      <span className={`px-2 py-1 rounded text-xs font-bold ${getResultColor(game.result)}`}>
-                        {getResultLabel(game.result)}
+
+            {hasRealH2HSection ? (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-slate-900">{match.homeTeam.name}</span>
+                  <div className="flex gap-1">
+                    {homeH2HLastFive.map((char, idx) => (
+                      <span
+                        key={`home-h2h-${idx}`}
+                        className={`w-6 h-6 rounded flex items-center justify-center text-xs font-bold ${
+                          char === 'W' ? 'bg-green-600 text-white' :
+                          char === 'D' ? 'bg-slate-400 text-white' :
+                          'bg-red-600 text-white'
+                        }`}
+                      >
+                        {char}
                       </span>
-                      <span className="text-xs text-slate-500">{format(new Date(game.date), 'MMM dd, yyyy')}</span>
-                    </div>
-                    <span className="text-sm font-bold text-slate-900">
-                      {game.homeGoals} - {game.awayGoals}
-                    </span>
-                  </div>
-                  <div className="text-xs text-slate-600">
-                    {game.homeTeam} vs {game.awayTeam}
+                    ))}
                   </div>
                 </div>
-              )) : (
-                <div className="text-center py-4 text-slate-500 text-sm">
-                  No recent head-to-head data available
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-slate-900">{match.awayTeam.name}</span>
+                  <div className="flex gap-1">
+                    {awayH2HLastFive.map((char, idx) => (
+                      <span
+                        key={`away-h2h-${idx}`}
+                        className={`w-6 h-6 rounded flex items-center justify-center text-xs font-bold ${
+                          char === 'W' ? 'bg-green-600 text-white' :
+                          char === 'D' ? 'bg-slate-400 text-white' :
+                          'bg-red-600 text-white'
+                        }`}
+                      >
+                        {char}
+                      </span>
+                    ))}
+                  </div>
                 </div>
-              )}
-            </div>
+              </div>
+            ) : (
+              <div className="text-sm text-slate-500">Not available</div>
+            )}
           </div>
 
           {/* Recommended Bet (if available) */}
@@ -452,14 +425,14 @@ export default function MatchCard({ match }: MatchCardProps) {
           )}
 
           {/* AI Explanation */}
-          {detailedPrediction.explanation && detailedPrediction.explanation.length > 0 && (
+          {explanationLines.length > 0 && (
             <div className="bg-white rounded-xl p-5 border-2 border-slate-200 shadow-sm">
               <div className="flex items-center gap-2 mb-4">
                 <Brain className="w-5 h-5 text-blue-600" />
                 <h3 className="font-bold text-slate-900">AI Analysis Explanation</h3>
               </div>
               <ul className="space-y-2">
-                {detailedPrediction.explanation.map((line, idx) => (
+                {explanationLines.map((line, idx) => (
                   <li key={idx} className="text-sm text-slate-700 flex items-start gap-2">
                     <span className="text-blue-600 font-bold mt-0.5">•</span>
                     <span>{line}</span>

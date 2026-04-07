@@ -7,8 +7,9 @@ import MatchCard from '@/components/MatchCard';
 import BookingCodeGenerator from '@/components/BookingCodeGenerator';
 import APIKeysModal from '@/components/APIKeysModal';
 import FilterWizard from '@/components/FilterWizard';
-import { getLeagueByKey } from '@/lib/leagueConfig';
+import { getLeagueByKey, SportType } from '@/lib/leagueConfig';
 import { getMarketAPIKeys } from '@/lib/marketConfig';
+import { resolveMaxMarketsForSelection } from '@/lib/marketOrchestration';
 import { convertRegionsToAPIParam } from '@/lib/bookmakersConfig';
 import { RefreshCw, AlertCircle, Filter, TrendingUp, Clock, Shield, CheckCircle2, XCircle, Settings, Trophy, Target, Calendar } from 'lucide-react';
 
@@ -36,6 +37,7 @@ export default function Home() {
   const handleFetchData = async (config: {
     leagues: string[];
     markets: string[];
+    selectedSport: SportType | null;
     dateRange: { start: Date; days: number };
     regions: string[];
     bookmakers: string[];
@@ -48,8 +50,33 @@ export default function Home() {
       .map(key => getLeagueByKey(key)?.name)
       .filter(Boolean) as string[];
     
-    // Convert market IDs to API keys
-    const marketAPIKeys = getMarketAPIKeys(config.markets);
+    const marketResolution = resolveMaxMarketsForSelection({
+      selectedSport: config.selectedSport,
+      selectedLeagueKeys: config.leagues,
+      selectedMarketIds: config.markets,
+      selectedRegions: config.regions,
+      selectedBookmakers: config.bookmakers,
+    });
+
+    const marketsByLeagueAPIKeys = Object.fromEntries(
+      config.leagues.map((leagueKey) => {
+        const leagueSport = getLeagueByKey(leagueKey)?.sport ?? config.selectedSport;
+        const marketIdsForLeague = marketResolution.marketsByLeague[leagueKey] || marketResolution.requestedMarkets;
+        return [leagueKey, getMarketAPIKeys(marketIdsForLeague, leagueSport)];
+      })
+    );
+
+    const fallbackMarketsByLeagueAPIKeys = Object.fromEntries(
+      config.leagues.map((leagueKey) => {
+        const leagueSport = getLeagueByKey(leagueKey)?.sport ?? config.selectedSport;
+        const fallbackForLeague = marketResolution.fallbackMarketsByLeague[leagueKey] || marketResolution.fallbackMarkets;
+        return [leagueKey, getMarketAPIKeys(fallbackForLeague, leagueSport)];
+      })
+    );
+
+    const marketAPIKeys = Array.from(
+      new Set(Object.values(marketsByLeagueAPIKeys).flat())
+    );
     
     // Convert regions to API parameter
     const regionsParam = convertRegionsToAPIParam(config.regions);
@@ -59,6 +86,9 @@ export default function Home() {
       leagueNames: leagueNames,
       marketIDs: config.markets,
       marketAPIKeys: marketAPIKeys,
+      marketResolution,
+      marketsByLeagueAPIKeys,
+      fallbackMarketsByLeagueAPIKeys,
       selectedRegions: config.regions,
       regionsAPIParam: regionsParam,
       selectedBookmakers: config.bookmakers
@@ -78,6 +108,8 @@ export default function Home() {
     await fetchSelectedLeagues({
       leagues: config.leagues,
       markets: marketAPIKeys,
+      marketsByLeague: marketsByLeagueAPIKeys,
+      fallbackMarketsByLeague: fallbackMarketsByLeagueAPIKeys,
       dateRange: config.dateRange,
       regions: regionsParam,
       bookmakers: config.bookmakers,

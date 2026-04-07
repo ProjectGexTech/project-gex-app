@@ -86,7 +86,9 @@ export class OddsAPIService {
     markets: string[] = ['h2h', 'totals'],
     dateRangeDays: number = 7,
     regions: string = 'uk,eu',
-    bookmakers: string[] = []
+    bookmakers: string[] = [],
+    marketsByLeague: Record<string, string[]> = {},
+    fallbackMarketsByLeague: Record<string, string[]> = {}
   ): Promise<OddsAPIMatch[]> {
     if (leagueKeys.length === 0) {
       throw new Error('No leagues selected');
@@ -108,7 +110,12 @@ export class OddsAPIService {
     try {
       // Create a cache key for this specific query
       const bookmakersKey = bookmakers.length > 0 ? bookmakers.sort().join(',') : 'all';
-      const cacheKey = `${leagueKeys.sort().join(',')}_${markets.sort().join(',')}_${dateRangeDays}_${regions}_${bookmakersKey}`;
+      const marketsByLeagueKey = JSON.stringify(
+        Object.entries(marketsByLeague)
+          .sort(([a], [b]) => a.localeCompare(b))
+          .map(([league, leagueMarkets]) => [league, [...leagueMarkets].sort()])
+      );
+      const cacheKey = `${leagueKeys.sort().join(',')}_${markets.sort().join(',')}_${dateRangeDays}_${regions}_${bookmakersKey}_${marketsByLeagueKey}`;
       const cached = this.queryCache.get(cacheKey);
       
       // Check if we have cached data for this exact query
@@ -118,9 +125,33 @@ export class OddsAPIService {
       }
 
       // Fetch only the selected leagues (one request per league)
-      const promises = leagueKeys.map(leagueKey => 
-        this.fetchOddsForSport(leagueKey, markets, dateRangeDays, regions, bookmakers)
-      );
+      const promises = leagueKeys.map(async (leagueKey) => {
+        const leagueMarkets = marketsByLeague[leagueKey] && marketsByLeague[leagueKey].length > 0
+          ? marketsByLeague[leagueKey]
+          : markets;
+        const fallbackMarkets = fallbackMarketsByLeague[leagueKey] && fallbackMarketsByLeague[leagueKey].length > 0
+          ? fallbackMarketsByLeague[leagueKey]
+          : ['h2h', 'totals'];
+
+        try {
+          return await this.fetchOddsForSport(leagueKey, leagueMarkets, dateRangeDays, regions, bookmakers);
+        } catch (error) {
+          const shouldFallback =
+            fallbackMarkets.length > 0 &&
+            fallbackMarkets.join(',') !== leagueMarkets.join(',');
+
+          if (!shouldFallback) {
+            throw error;
+          }
+
+          console.warn(`⚠️ Retrying ${leagueKey} with fallback markets:`, {
+            requested: leagueMarkets,
+            fallback: fallbackMarkets,
+          });
+
+          return this.fetchOddsForSport(leagueKey, fallbackMarkets, dateRangeDays, regions, bookmakers);
+        }
+      });
 
       const results = await Promise.allSettled(promises);
       

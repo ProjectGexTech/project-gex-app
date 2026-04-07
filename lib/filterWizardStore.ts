@@ -40,6 +40,7 @@ export interface FilterWizardState {
   setSelectedLeagues: (leagues: string[]) => void;
   setSeason: (season: string) => void;
   setDateRange: (dateRange: DateRangeFilter) => void;
+  setSelectedMarkets: (markets: string[]) => void;
   toggleMarket: (marketId: string) => void;
   toggleRegion: (regionId: string) => void;
   toggleBookmaker: (bookmakerKey: string) => void;
@@ -81,9 +82,10 @@ export const useFilterWizardStore = create<FilterWizardState>((set, get) => ({
   },
   
   setSelectedSport: (sport) => {
+    const previousSport = get().selectedSport;
     set({ selectedSport: sport });
     // Reset selected leagues when sport changes
-    if (sport !== get().selectedSport) {
+    if (sport !== previousSport) {
       set({ selectedLeagues: [] });
     }
     get().validateFilters();
@@ -110,6 +112,11 @@ export const useFilterWizardStore = create<FilterWizardState>((set, get) => ({
   
   setDateRange: (dateRange) => {
     set({ dateRange });
+    get().validateFilters();
+  },
+
+  setSelectedMarkets: (markets) => {
+    set({ selectedMarkets: markets });
     get().validateFilters();
   },
   

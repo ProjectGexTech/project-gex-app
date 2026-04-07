@@ -3,6 +3,17 @@
 export type MarketType = 'h2h' | 'ou25' | 'btts' | 'dc';
 
 export type ConfidenceLevel = 'low' | 'medium' | 'high';
+export type DataSource = 'real' | 'mock';
+
+export interface DataQualityInfo {
+  form: DataSource;
+  h2h: DataSource;
+  overall: DataSource;
+  formReason?: string;
+  h2hReason?: string;
+  overallReason?: string;
+  notes?: string[];
+}
 
 export interface Team {
   id: string;
@@ -111,6 +122,8 @@ export interface DetailedAIPrediction {
     homeAwayPerformance: { score: number; weight: number; confidence: number };
     goalTrends: { score: number; weight: number; confidence: number };
   };
+
+  dataQuality?: DataQualityInfo;
 }
 
 export interface Prediction {
@@ -127,6 +140,7 @@ export interface Prediction {
 
 export interface Match {
   id: string;
+  sportKey?: string;
   homeTeam: Team;
   awayTeam: Team;
   date: Date;
@@ -135,6 +149,7 @@ export interface Match {
   bookmakers: string[];
   prediction: Prediction;
   detailedPrediction?: DetailedAIPrediction; // Loaded on-demand
+  dataQuality?: DataQualityInfo;
   form: {
     home: TeamForm;
     away: TeamForm;

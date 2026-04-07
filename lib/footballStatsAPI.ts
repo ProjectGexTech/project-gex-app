@@ -130,6 +130,7 @@ const API_BASE_URL = 'https://v3.football.api-sports.io';
 export class FootballStatsService {
   private static instance: FootballStatsService;
   private cache: Map<string, { data: any; timestamp: number }> = new Map();
+  private dataSourceCache: Map<string, { source: 'real' | 'mock'; reason?: string }> = new Map();
   private teamIdCache: Map<string, number> = new Map();
   private readonly CACHE_DURATION = 60 * 60 * 1000; // 1 hour
 
@@ -148,16 +149,19 @@ export class FootballStatsService {
   private async findTeamId(teamName: string): Promise<number | null> {
     // Check cache first
     const cached = this.teamIdCache.get(teamName);
-    if (cached) return cached;
+    if (cached) {
+      console.log(`✅ Team ID cache hit for "${teamName}": ${cached}`);
+      return cached;
+    }
 
     const API_KEY = getAPIKey();
-    console.log('🔑 Football API - Retrieved key from store:', API_KEY ? `${API_KEY.substring(0, 8)}...` : 'null');
     if (!API_KEY) {
-      console.warn('⚠️ API-Football key not configured, cannot search for team ID');
+      console.warn(`⚠️ Team search: No API-Football key available for "${teamName}"`);
       return null;
     }
 
     try {
+      console.log(`🔍 Team search: Looking up "${teamName}" on API-Football...`);
       const response = await fetch(
         `${API_BASE_URL}/teams?search=${encodeURIComponent(teamName)}`,
         {
@@ -168,7 +172,7 @@ export class FootballStatsService {
       );
 
       if (!response.ok) {
-        console.error(`API-Football team search failed: ${response.status}`);
+        console.error(`❌ Team search: API returned status ${response.status} for "${teamName}"`);
         return null;
       }
 
@@ -177,13 +181,16 @@ export class FootballStatsService {
       if (data.response && data.response.length > 0) {
         // Get the first match (most relevant)
         const teamId = data.response[0].team.id;
+        const teamFound = data.response[0].team.name;
         this.teamIdCache.set(teamName, teamId);
+        console.log(`✅ Team search: Found "${teamName}" → ID ${teamId} (matched: "${teamFound}")`);
         return teamId;
       }
       
+      console.warn(`⚠️ Team search: No results found for "${teamName}" on API-Football`);
       return null;
     } catch (error) {
-      console.error('Error finding team ID:', error);
+      console.error(`❌ Team search: Error looking up "${teamName}":`, error);
       return null;
     }
   }
@@ -205,7 +212,7 @@ export class FootballStatsService {
       // });
       
       const mockStats = this.generateMockTeamStats(teamName);
-      this.setCachedData(cacheKey, mockStats);
+      this.setCachedDataWithSource(cacheKey, mockStats, 'mock', `Fallback stats generated for ${teamName}`);
       return mockStats;
     } catch (error) {
       console.error('Error fetching team stats:', error);
@@ -219,29 +226,37 @@ export class FootballStatsService {
   async fetchH2H(homeTeam: string, awayTeam: string): Promise<APIFootballH2H[]> {
     const cacheKey = `h2h_${homeTeam}_${awayTeam}`;
     const cached = this.getCachedData(cacheKey);
-    if (cached) return cached;
+    if (cached) {
+      console.log(`✅ H2H: Using cached data for ${homeTeam} vs ${awayTeam}`);
+      return cached;
+    }
 
     try {
+      // Validate API key first
+      const API_KEY = getAPIKey();
+      if (!API_KEY) {
+        console.warn(`⚠️ H2H: No API-Football key configured for ${homeTeam} vs ${awayTeam}, using fallback data`);
+        const mockH2H = this.generateMockH2H(homeTeam, awayTeam);
+        this.setCachedDataWithSource(cacheKey, mockH2H, 'mock', 'Missing API key');
+        return mockH2H;
+      }
+
       // Find team IDs
+      console.log(`🔍 H2H: Looking up team IDs for ${homeTeam} and ${awayTeam}...`);
       const homeTeamId = await this.findTeamId(homeTeam);
       const awayTeamId = await this.findTeamId(awayTeam);
 
       if (!homeTeamId || !awayTeamId) {
-        console.warn(`Could not find team IDs for ${homeTeam} vs ${awayTeam}, using mock data`);
+        console.warn(`⚠️ H2H: Could not find team IDs (home: ${homeTeamId}, away: ${awayTeamId}), using fallback data`);
         const mockH2H = this.generateMockH2H(homeTeam, awayTeam);
-        this.setCachedData(cacheKey, mockH2H);
+        this.setCachedDataWithSource(cacheKey, mockH2H, 'mock', 'Team ID lookup failed');
         return mockH2H;
       }
 
-      const API_KEY = getAPIKey();
-      if (!API_KEY) {
-        console.warn('API-Football key not configured, using mock data');
-        const mockH2H = this.generateMockH2H(homeTeam, awayTeam);
-        this.setCachedData(cacheKey, mockH2H);
-        return mockH2H;
-      }
+      console.log(`✅ H2H: Found team IDs (${homeTeam}: ${homeTeamId}, ${awayTeam}: ${awayTeamId})`);
 
       // Fetch real H2H data from API-Football
+      console.log(`📡 H2H: Fetching real H2H data from API-Football...`);
       const response = await fetch(
         `${API_BASE_URL}/fixtures/headtohead?h2h=${homeTeamId}-${awayTeamId}&last=10`,
         {
@@ -252,27 +267,31 @@ export class FootballStatsService {
       );
 
       if (!response.ok) {
-        throw new Error(`API request failed: ${response.status}`);
+        console.error(`❌ H2H: API request failed with status ${response.status} for ${homeTeam} vs ${awayTeam}`);
+        const mockH2H = this.generateMockH2H(homeTeam, awayTeam);
+        this.setCachedDataWithSource(cacheKey, mockH2H, 'mock', `API status ${response.status}`);
+        return mockH2H;
       }
 
       const data = await response.json();
       
       if (data.response && data.response.length > 0) {
         const h2hData = data.response.slice(0, 10); // Last 10 games
-        this.setCachedData(cacheKey, h2hData);
+        console.log(`✅ H2H: Retrieved ${h2hData.length} real H2H matches for ${homeTeam} vs ${awayTeam}`);
+        this.setCachedDataWithSource(cacheKey, h2hData, 'real');
         return h2hData;
       }
       
       // No H2H data available, use mock
-      console.warn(`No H2H data available for ${homeTeam} vs ${awayTeam}, using mock data`);
+      console.warn(`ℹ️ H2H: No H2H data available on API for ${homeTeam} vs ${awayTeam}, using fallback data`);
       const mockH2H = this.generateMockH2H(homeTeam, awayTeam);
-      this.setCachedData(cacheKey, mockH2H);
+      this.setCachedDataWithSource(cacheKey, mockH2H, 'mock', 'Empty API response');
       return mockH2H;
     } catch (error) {
-      console.error('Error fetching H2H data:', error);
+      console.error(`❌ H2H: Error fetching H2H data for ${homeTeam} vs ${awayTeam}:`, error);
       // Fallback to mock data on error
       const mockH2H = this.generateMockH2H(homeTeam, awayTeam);
-      this.setCachedData(cacheKey, mockH2H);
+      this.setCachedDataWithSource(cacheKey, mockH2H, 'mock', 'Fetch error');
       return mockH2H;
     }
   }
@@ -292,6 +311,20 @@ export class FootballStatsService {
 
   private setCachedData(key: string, data: any): void {
     this.cache.set(key, { data, timestamp: Date.now() });
+  }
+
+  private setCachedDataWithSource(
+    key: string,
+    data: any,
+    source: 'real' | 'mock',
+    reason?: string
+  ): void {
+    this.setCachedData(key, data);
+    this.dataSourceCache.set(key, { source, reason });
+  }
+
+  getDataSource(key: string): { source: 'real' | 'mock'; reason?: string } | null {
+    return this.dataSourceCache.get(key) ?? null;
   }
 
   /**
@@ -474,7 +507,7 @@ export class FootballStatsService {
       if (!teamId) {
         console.warn(`Could not find team ID for ${teamName}, using mock data`);
         const mockForm = this.generateMockRecentForm(teamName);
-        this.setCachedData(cacheKey, mockForm);
+        this.setCachedDataWithSource(cacheKey, mockForm, 'mock', 'Team ID lookup failed');
         return mockForm;
       }
 
@@ -482,7 +515,7 @@ export class FootballStatsService {
       if (!API_KEY) {
         console.warn('API-Football key not configured, using mock data');
         const mockForm = this.generateMockRecentForm(teamName);
-        this.setCachedData(cacheKey, mockForm);
+        this.setCachedDataWithSource(cacheKey, mockForm, 'mock', 'Missing API key');
         return mockForm;
       }
 
@@ -504,20 +537,20 @@ export class FootballStatsService {
       
       if (data.response && data.response.length > 0) {
         const formData = data.response.slice(0, 10); // Last 10 games
-        this.setCachedData(cacheKey, formData);
+        this.setCachedDataWithSource(cacheKey, formData, 'real');
         return formData;
       }
       
       // No form data available, use mock
       console.warn(`No form data available for ${teamName}, using mock data`);
       const mockForm = this.generateMockRecentForm(teamName);
-      this.setCachedData(cacheKey, mockForm);
+      this.setCachedDataWithSource(cacheKey, mockForm, 'mock', 'Empty API response');
       return mockForm;
     } catch (error) {
       console.error('Error fetching team recent form:', error);
       // Fallback to mock data on error
       const mockForm = this.generateMockRecentForm(teamName);
-      this.setCachedData(cacheKey, mockForm);
+      this.setCachedDataWithSource(cacheKey, mockForm, 'mock', 'Fetch error');
       return mockForm;
     }
   }
