@@ -70,7 +70,7 @@ export default function APIKeysModal() {
               <Lock className="w-6 h-6" />
             </div>
             <div>
-              <h2 className="text-2xl font-bold">API Configuration Required</h2>
+              <h2 className="text-2xl font-bold">Enter your API keys</h2>
               <p className="text-blue-100 text-sm">Enter your API keys to start using Gexten</p>
             </div>
           </div>
