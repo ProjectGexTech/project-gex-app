@@ -118,6 +118,8 @@ export default function Home() {
     setDataFetched(true);
   };
 
+
+  
   const handleReset = () => {
     setDataFetched(false);
   };
