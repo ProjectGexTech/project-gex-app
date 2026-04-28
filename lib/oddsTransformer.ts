@@ -129,21 +129,19 @@ function generatePlaceholderH2H(): HeadToHead {
 /**
  * Extract odds from bookmakers data
  */
-function extractOdds(bookmakers: OddsAPIMatch['bookmakers']): Odds {
+function extractOdds(bookmakers: OddsAPIMatch['bookmakers'], homeTeamName: string, awayTeamName: string): Odds {
   if (!bookmakers || bookmakers.length === 0) {
     return {};
   }
 
   const odds: Odds = {};
 
-  // Get the first bookmaker's odds (you could average across bookmakers if desired)
   const bookmaker = bookmakers[0];
 
   for (const market of bookmaker.markets) {
     if (market.key === 'h2h') {
-      // Head-to-head odds
-      const homeOutcome = market.outcomes.find(o => o.name === bookmaker.markets[0].outcomes[0].name);
-      const awayOutcome = market.outcomes.find(o => o.name === bookmaker.markets[0].outcomes[2]?.name);
+      const homeOutcome = market.outcomes.find(o => o.name === homeTeamName);
+      const awayOutcome = market.outcomes.find(o => o.name === awayTeamName);
       const drawOutcome = market.outcomes.find(o => o.name === 'Draw');
 
       if (homeOutcome && awayOutcome) {
@@ -154,7 +152,6 @@ function extractOdds(bookmakers: OddsAPIMatch['bookmakers']): Odds {
         };
       }
     } else if (market.key === 'totals') {
-      // Over/Under 2.5 goals
       const overOutcome = market.outcomes.find(o => o.name === 'Over' && o.price);
       const underOutcome = market.outcomes.find(o => o.name === 'Under' && o.price);
 
@@ -165,7 +162,6 @@ function extractOdds(bookmakers: OddsAPIMatch['bookmakers']): Odds {
         };
       }
     } else if (market.key === 'btts') {
-      // Both teams to score
       const yesOutcome = market.outcomes.find(o => o.name === 'Yes');
       const noOutcome = market.outcomes.find(o => o.name === 'No');
 
@@ -184,7 +180,7 @@ function extractOdds(bookmakers: OddsAPIMatch['bookmakers']): Odds {
 /**
  * Get average odds across all bookmakers for better accuracy
  */
-function getAverageOdds(bookmakers: OddsAPIMatch['bookmakers']): Odds {
+function getAverageOdds(bookmakers: OddsAPIMatch['bookmakers'], homeTeamName: string, awayTeamName: string): Odds {
   if (!bookmakers || bookmakers.length === 0) {
     return {};
   }
@@ -203,17 +199,12 @@ function getAverageOdds(bookmakers: OddsAPIMatch['bookmakers']): Odds {
   for (const bookmaker of bookmakers) {
     for (const market of bookmaker.markets) {
       if (market.key === 'h2h' && market.outcomes.length >= 2) {
-        const outcomes = market.outcomes;
-        oddsAccumulator.h2h.home.push(outcomes[0].price);
-        if (outcomes.length === 3) {
-          // Has draw
-          const drawOutcome = outcomes.find(o => o.name === 'Draw');
-          if (drawOutcome) oddsAccumulator.h2h.draw.push(drawOutcome.price);
-          const awayOutcome = outcomes.find(o => o.name !== 'Draw' && o.name !== outcomes[0].name);
-          if (awayOutcome) oddsAccumulator.h2h.away.push(awayOutcome.price);
-        } else {
-          oddsAccumulator.h2h.away.push(outcomes[1].price);
-        }
+        const homeOutcome = market.outcomes.find(o => o.name === homeTeamName);
+        const awayOutcome = market.outcomes.find(o => o.name === awayTeamName);
+        const drawOutcome = market.outcomes.find(o => o.name === 'Draw');
+        if (homeOutcome) oddsAccumulator.h2h.home.push(homeOutcome.price);
+        if (awayOutcome) oddsAccumulator.h2h.away.push(awayOutcome.price);
+        if (drawOutcome) oddsAccumulator.h2h.draw.push(drawOutcome.price);
       } else if (market.key === 'totals') {
         const overOutcome = market.outcomes.find(o => o.name === 'Over');
         const underOutcome = market.outcomes.find(o => o.name === 'Under');
@@ -274,7 +265,7 @@ export function transformOddsAPIMatch(apiMatch: OddsAPIMatch): Match {
     shortName: apiMatch.away_team.substring(0, 3).toUpperCase(),
   };
 
-  const odds = getAverageOdds(apiMatch.bookmakers);
+  const odds = getAverageOdds(apiMatch.bookmakers, apiMatch.home_team, apiMatch.away_team);
   const prediction = generatePredictionFromOdds(odds);
   const bookmakers = apiMatch.bookmakers.map(b => b.title);
 
