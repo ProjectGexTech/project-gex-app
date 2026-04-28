@@ -1,6 +1,6 @@
 // Type definitions for the Gexten app
 
-export type MarketType = 'h2h' | 'ou25' | 'btts' | 'dc';
+export type MarketType = 'h2h' | 'ou25' | 'btts' | 'dc' | 'spreads' | 'teamTotals' | 'drawNoBet' | 'doubleChance';
 
 export type ConfidenceLevel = 'low' | 'medium' | 'high';
 export type DataSource = 'real' | 'mock';
@@ -30,10 +30,28 @@ export interface Odds {
   ou25?: {
     over: number;
     under: number;
+    point?: number; // the totals line e.g. 2.5 goals, 215.5 pts, 8.5 runs
   };
   btts?: {
     yes: number;
     no: number;
+  };
+  spreads?: {
+    home: { point: number; price: number };
+    away: { point: number; price: number };
+  };
+  teamTotals?: {
+    home: { over: number; under: number; point: number };
+    away: { over: number; under: number; point: number };
+  };
+  drawNoBet?: {
+    home: number;
+    away: number;
+  };
+  doubleChance?: {
+    homeOrDraw: number;  // 1X
+    homeOrAway: number;  // 12
+    drawOrAway: number;  // X2
   };
 }
 

@@ -184,6 +184,11 @@ export const useFilterWizardStore = create<FilterWizardState>((set, get) => ({
       const sportLabels: Record<SportType, string> = {
         football: 'Football',
         basketball: 'Basketball',
+        americanfootball: 'American Football',
+        baseball: 'Baseball',
+        icehockey: 'Ice Hockey',
+        mma: 'MMA',
+        rugby: 'Rugby',
       };
       parts.push(sportLabels[state.selectedSport]);
     } else {

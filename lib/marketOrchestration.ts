@@ -51,7 +51,7 @@ function getContextSports(selectedSport: SportType | null, selectedLeagueKeys: s
     }
   }
 
-  return ['football', 'basketball'];
+  return ['football', 'basketball', 'americanfootball', 'baseball', 'icehockey', 'mma', 'rugby'];
 }
 
 function getContextBookmakers(selectedBookmakers: string[], selectedRegions: string[]) {
@@ -93,11 +93,21 @@ export function resolveMaxMarketsForSelection(input: ResolveMarketsInput): Resol
   const bySportRequested: Record<SportType, string[]> = {
     football: [],
     basketball: [],
+    americanfootball: [],
+    baseball: [],
+    icehockey: [],
+    mma: [],
+    rugby: [],
   };
 
   const bySportFallback: Record<SportType, string[]> = {
     football: [],
     basketball: [],
+    americanfootball: [],
+    baseball: [],
+    icehockey: [],
+    mma: [],
+    rugby: [],
   };
 
   const statusVotes = new Map<string, MarketAvailabilityStatus[]>();

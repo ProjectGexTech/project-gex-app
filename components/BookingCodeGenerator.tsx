@@ -175,7 +175,7 @@ export default function BookingCodeGenerator() {
               </button>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-sm text-slate-600 capitalize">{selection.outcome} win</span>
+              <span className="text-sm text-slate-600">{selection.outcome}</span>
               <span className="text-lg font-bold text-slate-900">{selection.odds.toFixed(2)}</span>
             </div>
           </div>
