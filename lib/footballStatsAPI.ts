@@ -399,54 +399,63 @@ export class FootballStatsService {
   }
 
   /**
-   * Generate realistic mock H2H history
-   * Replace with real API call in production
+   * Deterministic seeded pseudo-random number generator (LCG).
+   * Using both team names as the seed guarantees the same H2H results are
+   * produced every time the same fixture is rendered — even across page
+   * refreshes before the in-memory cache has been populated.
+   */
+  private makeLCG(seed: number): () => number {
+    let s = seed >>> 0; // treat as unsigned 32-bit
+    return () => {
+      // Knuth's LCG constants
+      s = Math.imul(1664525, s) + 1013904223 >>> 0;
+      return s / 0x100000000; // 0..1
+    };
+  }
+
+  /**
+   * Generate deterministic mock H2H history.
+   * Results are stable across renders/refreshes because the seed derives
+   * entirely from the team names — no Math.random().
    */
   private generateMockH2H(homeTeam: string, awayTeam: string): APIFootballH2H[] {
+    const seedStr = homeTeam + '|' + awayTeam;
+    const seed = seedStr.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
+    const rand = this.makeLCG(seed);
+
     const matches: APIFootballH2H[] = [];
     const numMatches = 5;
-    
+
     for (let i = 0; i < numMatches; i++) {
       const date = new Date();
       date.setMonth(date.getMonth() - (i + 1) * 2);
-      
-      const homeGoals = Math.floor(Math.random() * 4);
-      const awayGoals = Math.floor(Math.random() * 4);
-      
+
+      const homeGoals = Math.floor(rand() * 4);
+      const awayGoals = Math.floor(rand() * 4);
+
       matches.push({
         fixture: {
-          id: Date.now() + i,
+          id: seed + i,
           date: date.toISOString(),
-          venue: {
-            name: `${homeTeam} Stadium`,
-            city: 'City',
-          },
+          venue: { name: `${homeTeam} Stadium`, city: 'City' },
         },
         teams: {
           home: {
-            id: Date.now(),
+            id: seed,
             name: homeTeam,
             winner: homeGoals > awayGoals ? true : homeGoals < awayGoals ? false : null,
           },
           away: {
-            id: Date.now() + 1,
+            id: seed + 1000,
             name: awayTeam,
             winner: awayGoals > homeGoals ? true : awayGoals < homeGoals ? false : null,
           },
         },
-        goals: {
-          home: homeGoals,
-          away: awayGoals,
-        },
-        score: {
-          fulltime: {
-            home: homeGoals,
-            away: awayGoals,
-          },
-        },
+        goals: { home: homeGoals, away: awayGoals },
+        score: { fulltime: { home: homeGoals, away: awayGoals } },
       });
     }
-    
+
     return matches;
   }
 
