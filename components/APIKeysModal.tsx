@@ -2,12 +2,14 @@
 
 import { useState, useEffect } from 'react';
 import { useAPIKeysStore } from '@/lib/apiKeysStore';
-import { Key, Lock, AlertCircle, ExternalLink, CheckCircle2 } from 'lucide-react';
+import { Key, Lock, AlertCircle, ExternalLink, CheckCircle2, Eye, EyeOff } from 'lucide-react';
 
 export default function APIKeysModal() {
   const { isConfigured, setApiKeys, loadApiKeysFromStorage } = useAPIKeysStore();
   const [oddsApiKey, setOddsApiKey] = useState('');
   const [footballApiKey, setFootballApiKey] = useState('');
+  const [showOddsApiKey, setShowOddsApiKey] = useState(false);
+  const [showFootballApiKey, setShowFootballApiKey] = useState(false);
   const [error, setError] = useState('');
   const [showModal, setShowModal] = useState(false);
 
@@ -61,10 +63,10 @@ export default function APIKeysModal() {
   if (!showModal) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-60 p-4">
       <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-6 rounded-t-2xl">
+        <div className="bg-linear-to-r from-blue-600 to-blue-700 text-white p-6">
           <div className="flex items-center gap-3 mb-2">
             <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
               <Lock className="w-6 h-6" />
@@ -81,7 +83,7 @@ export default function APIKeysModal() {
           {/* Info Banner */}
           <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-4">
             <div className="flex gap-3">
-              <AlertCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+              <AlertCircle className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
               <div className="text-sm text-blue-900">
                 <p className="font-semibold mb-1">Two API keys are required:</p>
                 <ul className="space-y-1 ml-4 list-disc">
@@ -115,12 +117,20 @@ export default function APIKeysModal() {
               <div className="relative">
                 <Key className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
                 <input
-                  type="password"
+                  type={showOddsApiKey ? 'text' : 'password'}
                   value={oddsApiKey}
                   onChange={(e) => setOddsApiKey(e.target.value)}
                   placeholder="Enter your Odds API key"
-                  className="w-full pl-12 pr-4 py-3 border-2 border-slate-300 rounded-xl focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 outline-none transition-all text-slate-900 placeholder:text-slate-400"
+                  className="w-full pl-12 pr-12 py-3 border-2 border-slate-300 rounded-xl focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 outline-none transition-all text-slate-900 placeholder:text-slate-400"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowOddsApiKey((current) => !current)}
+                  aria-label={showOddsApiKey ? 'Hide The Odds API key' : 'Show The Odds API key'}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                >
+                  {showOddsApiKey ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                </button>
               </div>
               <p className="mt-1.5 text-xs text-slate-600">
                 Free tier: 500 requests/month • Paid plans from $10/month
@@ -145,12 +155,20 @@ export default function APIKeysModal() {
               <div className="relative">
                 <Key className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
                 <input
-                  type="password"
+                  type={showFootballApiKey ? 'text' : 'password'}
                   value={footballApiKey}
                   onChange={(e) => setFootballApiKey(e.target.value)}
                   placeholder="Enter your API-Football key"
-                  className="w-full pl-12 pr-4 py-3 border-2 border-slate-300 rounded-xl focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 outline-none transition-all text-slate-900 placeholder:text-slate-400"
+                  className="w-full pl-12 pr-12 py-3 border-2 border-slate-300 rounded-xl focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 outline-none transition-all text-slate-900 placeholder:text-slate-400"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowFootballApiKey((current) => !current)}
+                  aria-label={showFootballApiKey ? 'Hide API-Football key' : 'Show API-Football key'}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                >
+                  {showFootballApiKey ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                </button>
               </div>
               <p className="mt-1.5 text-xs text-slate-600">
                 Free tier: 100 requests/day • Paid plans from $15/month
@@ -160,7 +178,7 @@ export default function APIKeysModal() {
             {/* Error Message */}
             {error && (
               <div className="bg-red-50 border-2 border-red-200 rounded-xl p-3 flex items-center gap-2">
-                <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
+                <AlertCircle className="w-5 h-5 text-red-600 shrink-0" />
                 <p className="text-sm text-red-900">{error}</p>
               </div>
             )}
