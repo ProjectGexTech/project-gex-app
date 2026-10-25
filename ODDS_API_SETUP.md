@@ -25,18 +25,18 @@ This guide will walk you through setting up The Odds API integration for the Gex
 2. Replace `your_api_key_here` with your actual API key:
 
 ```env
-NEXT_PUBLIC_ODDS_API_KEY=your_actual_api_key_from_the_odds_api
+ODDS_API_KEY=your_actual_api_key_from_the_odds_api
 ```
 
 **Example:**
 ```env
-NEXT_PUBLIC_ODDS_API_KEY=abc123def456ghi789jkl012mno345pq
+ODDS_API_KEY=abc123def456ghi789jkl012mno345pq
 ```
 
 ⚠️ **Important Notes:**
 - Never commit your API key to version control
 - The `.env.local` file is already in `.gitignore`
-- Use `NEXT_PUBLIC_` prefix because we're calling the API from the client-side
+- Do NOT use a `NEXT_PUBLIC_` prefix: the key is read by the app's server routes and must never reach the browser
 - Restart your dev server after changing environment variables
 
 ## Step 3: Verify the Setup

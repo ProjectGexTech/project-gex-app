@@ -1,0 +1,536 @@
+{
+  "residual_full": {
+    "test_matches": 5807,
+    "test_seasons": [
+      "2324",
+      "2425",
+      "2526",
+      "2627"
+    ],
+    "outcome": {
+      "probability_quality": {
+        "vs_avg": {
+          "matches": 5807,
+          "model_log_loss": 0.9781,
+          "market_log_loss": 0.9776,
+          "difference": 0.0006,
+          "difference_95ci": [
+            -0.0009,
+            0.0021
+          ]
+        },
+        "vs_close": {
+          "matches": 5169,
+          "model_log_loss": 0.975,
+          "market_log_loss": 0.9721,
+          "difference": 0.0029,
+          "difference_95ci": [
+            0.0006,
+            0.0054
+          ]
+        }
+      },
+      "backtest": {
+        "at_avg_price": {
+          "edge>0%": {
+            "bets": 2465,
+            "bet_rate": 0.424,
+            "avg_odds": 2.84,
+            "roi": -0.0475,
+            "roi_95ci": [
+              -0.0941,
+              0.0028
+            ],
+            "max_drawdown_units": 123.1,
+            "avg_clv": -0.0412,
+            "clv_positive_rate": 0.25
+          },
+          "edge>2%": {
+            "bets": 1281,
+            "bet_rate": 0.221,
+            "avg_odds": 3.08,
+            "roi": -0.0602,
+            "roi_95ci": [
+              -0.1299,
+              0.0175
+            ],
+            "max_drawdown_units": 79.3,
+            "avg_clv": -0.0412,
+            "clv_positive_rate": 0.268
+          },
+          "edge>5%": {
+            "bets": 443,
+            "bet_rate": 0.076,
+            "avg_odds": 3.69,
+            "roi": -0.0568,
+            "roi_95ci": [
+              -0.1964,
+              0.0825
+            ],
+            "max_drawdown_units": 43.7,
+            "avg_clv": -0.0415,
+            "clv_positive_rate": 0.298
+          },
+          "edge>10%": {
+            "bets": 96,
+            "bet_rate": 0.017,
+            "avg_odds": 4.19,
+            "roi": -0.2479,
+            "roi_95ci": [
+              -0.5047,
+              0.0208
+            ],
+            "max_drawdown_units": 27.9,
+            "avg_clv": -0.052,
+            "clv_positive_rate": 0.255
+          }
+        },
+        "at_max_price": {
+          "edge>0%": {
+            "bets": 5171,
+            "bet_rate": 0.89,
+            "avg_odds": 3.29,
+            "roi": -0.0268,
+            "roi_95ci": [
+              -0.065,
+              0.0158
+            ],
+            "max_drawdown_units": 161.0,
+            "avg_clv": -0.0019,
+            "clv_positive_rate": 0.475
+          },
+          "edge>2%": {
+            "bets": 3837,
+            "bet_rate": 0.661,
+            "avg_odds": 3.5,
+            "roi": -0.0254,
+            "roi_95ci": [
+              -0.0693,
+              0.02
+            ],
+            "max_drawdown_units": 113.4,
+            "avg_clv": 0.0024,
+            "clv_positive_rate": 0.501
+          },
+          "edge>5%": {
+            "bets": 1874,
+            "bet_rate": 0.323,
+            "avg_odds": 4.05,
+            "roi": -0.0356,
+            "roi_95ci": [
+              -0.1054,
+              0.0365
+            ],
+            "max_drawdown_units": 84.3,
+            "avg_clv": 0.0129,
+            "clv_positive_rate": 0.551
+          },
+          "edge>10%": {
+            "bets": 483,
+            "bet_rate": 0.083,
+            "avg_odds": 5.48,
+            "roi": -0.1165,
+            "roi_95ci": [
+              -0.2699,
+              0.0378
+            ],
+            "max_drawdown_units": 61.2,
+            "avg_clv": 0.03,
+            "clv_positive_rate": 0.577
+          }
+        }
+      },
+      "backtest_market_control": {
+        "at_avg_price": {
+          "edge>0%": {
+            "bets": 1,
+            "bet_rate": 0.0,
+            "avg_odds": 6.37,
+            "roi": -1.0,
+            "roi_95ci": [
+              -1.0,
+              -1.0
+            ],
+            "max_drawdown_units": 1.0,
+            "avg_clv": -0.1799,
+            "clv_positive_rate": 0.0
+          },
+          "edge>2%": {
+            "bets": 0
+          },
+          "edge>5%": {
+            "bets": 0
+          },
+          "edge>10%": {
+            "bets": 0
+          }
+        },
+        "at_max_price": {
+          "edge>0%": {
+            "bets": 3962,
+            "bet_rate": 0.682,
+            "avg_odds": 5.88,
+            "roi": -0.0859,
+            "roi_95ci": [
+              -0.1506,
+              -0.0197
+            ],
+            "max_drawdown_units": 386.2,
+            "avg_clv": 0.0127,
+            "clv_positive_rate": 0.567
+          },
+          "edge>2%": {
+            "bets": 1916,
+            "bet_rate": 0.33,
+            "avg_odds": 7.51,
+            "roi": -0.1743,
+            "roi_95ci": [
+              -0.2714,
+              -0.0771
+            ],
+            "max_drawdown_units": 342.9,
+            "avg_clv": 0.0257,
+            "clv_positive_rate": 0.574
+          },
+          "edge>5%": {
+            "bets": 700,
+            "bet_rate": 0.121,
+            "avg_odds": 10.7,
+            "roi": -0.2213,
+            "roi_95ci": [
+              -0.4116,
+              -0.0196
+            ],
+            "max_drawdown_units": 158.1,
+            "avg_clv": 0.0623,
+            "clv_positive_rate": 0.61
+          },
+          "edge>10%": {
+            "bets": 218,
+            "bet_rate": 0.038,
+            "avg_odds": 14.68,
+            "roi": -0.5491,
+            "roi_95ci": [
+              -0.8356,
+              -0.1547
+            ],
+            "max_drawdown_units": 125.7,
+            "avg_clv": 0.1108,
+            "clv_positive_rate": 0.697
+          }
+        }
+      }
+    },
+    "ou25": {
+      "probability_quality": {
+        "vs_avg": {
+          "matches": 5807,
+          "model_log_loss": 0.6722,
+          "market_log_loss": 0.6721,
+          "difference": 0.0001,
+          "difference_95ci": [
+            -0.001,
+            0.0011
+          ]
+        },
+        "vs_close": {
+          "matches": 5130,
+          "model_log_loss": 0.6722,
+          "market_log_loss": 0.6687,
+          "difference": 0.0035,
+          "difference_95ci": [
+            0.0014,
+            0.0056
+          ]
+        }
+      },
+      "backtest": {
+        "at_avg_price": {
+          "edge>0%": {
+            "bets": 765,
+            "bet_rate": 0.132,
+            "avg_odds": 1.85,
+            "roi": -0.0276,
+            "roi_95ci": [
+              -0.0904,
+              0.037
+            ],
+            "max_drawdown_units": 29.4,
+            "avg_clv": -0.052,
+            "clv_positive_rate": 0.175
+          },
+          "edge>2%": {
+            "bets": 204,
+            "bet_rate": 0.035,
+            "avg_odds": 1.97,
+            "roi": -0.1106,
+            "roi_95ci": [
+              -0.2398,
+              0.0148
+            ],
+            "max_drawdown_units": 23.3,
+            "avg_clv": -0.0511,
+            "clv_positive_rate": 0.228
+          },
+          "edge>5%": {
+            "bets": 24,
+            "bet_rate": 0.004,
+            "avg_odds": 2.33,
+            "roi": -0.0542,
+            "roi_95ci": [
+              -0.4405,
+              0.3796
+            ],
+            "max_drawdown_units": 6.0,
+            "avg_clv": -0.0607,
+            "clv_positive_rate": 0.273
+          },
+          "edge>10%": {
+            "bets": 0
+          }
+        },
+        "at_max_price": {
+          "edge>0%": {
+            "bets": 3403,
+            "bet_rate": 0.586,
+            "avg_odds": 1.94,
+            "roi": -0.0153,
+            "roi_95ci": [
+              -0.0485,
+              0.015
+            ],
+            "max_drawdown_units": 85.3,
+            "avg_clv": -0.0173,
+            "clv_positive_rate": 0.362
+          },
+          "edge>2%": {
+            "bets": 1590,
+            "bet_rate": 0.274,
+            "avg_odds": 1.99,
+            "roi": -0.0271,
+            "roi_95ci": [
+              -0.0743,
+              0.0225
+            ],
+            "max_drawdown_units": 56.9,
+            "avg_clv": -0.0158,
+            "clv_positive_rate": 0.373
+          },
+          "edge>5%": {
+            "bets": 353,
+            "bet_rate": 0.061,
+            "avg_odds": 2.16,
+            "roi": -0.0362,
+            "roi_95ci": [
+              -0.1518,
+              0.0803
+            ],
+            "max_drawdown_units": 20.3,
+            "avg_clv": -0.0119,
+            "clv_positive_rate": 0.415
+          },
+          "edge>10%": {
+            "bets": 39,
+            "bet_rate": 0.007,
+            "avg_odds": 2.46,
+            "roi": -0.0721,
+            "roi_95ci": [
+              -0.4283,
+              0.3074
+            ],
+            "max_drawdown_units": 4.8,
+            "avg_clv": 0.0291,
+            "clv_positive_rate": 0.632
+          }
+        }
+      },
+      "backtest_market_control": {
+        "at_avg_price": {
+          "edge>0%": {
+            "bets": 0
+          },
+          "edge>2%": {
+            "bets": 0
+          },
+          "edge>5%": {
+            "bets": 0
+          },
+          "edge>10%": {
+            "bets": 0
+          }
+        },
+        "at_max_price": {
+          "edge>0%": {
+            "bets": 727,
+            "bet_rate": 0.125,
+            "avg_odds": 2.62,
+            "roi": -0.0107,
+            "roi_95ci": [
+              -0.0959,
+              0.0853
+            ],
+            "max_drawdown_units": 30.8,
+            "avg_clv": 0.0089,
+            "clv_positive_rate": 0.525
+          },
+          "edge>2%": {
+            "bets": 126,
+            "bet_rate": 0.022,
+            "avg_odds": 3.09,
+            "roi": -0.0886,
+            "roi_95ci": [
+              -0.3312,
+              0.1511
+            ],
+            "max_drawdown_units": 17.1,
+            "avg_clv": 0.0511,
+            "clv_positive_rate": 0.696
+          },
+          "edge>5%": {
+            "bets": 36,
+            "bet_rate": 0.006,
+            "avg_odds": 2.7,
+            "roi": -0.0528,
+            "roi_95ci": [
+              -0.4284,
+              0.3503
+            ],
+            "max_drawdown_units": 6.0,
+            "avg_clv": 0.1221,
+            "clv_positive_rate": 0.917
+          },
+          "edge>10%": {
+            "bets": 21,
+            "bet_rate": 0.004,
+            "avg_odds": 2.27,
+            "roi": 0.0648,
+            "roi_95ci": [
+              -0.3929,
+              0.5821
+            ],
+            "max_drawdown_units": 4.0,
+            "avg_clv": 0.1795,
+            "clv_positive_rate": 1.0
+          }
+        }
+      }
+    },
+    "btts": {
+      "probability_quality": {
+        "vs_base_rate": {
+          "model_log_loss": 0.6859,
+          "base_rate_log_loss": 0.6902,
+          "difference": -0.0043,
+          "difference_95ci": [
+            -0.0072,
+            -0.0014
+          ]
+        }
+      }
+    },
+    "by_league_vs_close": {
+      "Bundesliga": {
+        "matches": 612,
+        "outcome": {
+          "difference": 0.0068,
+          "difference_95ci": [
+            -0.0009,
+            0.0147
+          ]
+        },
+        "ou25": {
+          "difference": 0.0072,
+          "difference_95ci": [
+            0.0002,
+            0.014
+          ]
+        }
+      },
+      "EPL": {
+        "matches": 1210,
+        "outcome": {
+          "difference": 0.0075,
+          "difference_95ci": [
+            0.0017,
+            0.0129
+          ]
+        },
+        "ou25": {
+          "difference": 0.0023,
+          "difference_95ci": [
+            -0.0022,
+            0.007
+          ]
+        }
+      },
+      "LaLiga": {
+        "matches": 760,
+        "outcome": {
+          "difference": 0.0013,
+          "difference_95ci": [
+            -0.005,
+            0.0076
+          ]
+        },
+        "ou25": {
+          "difference": 0.0056,
+          "difference_95ci": [
+            0.0007,
+            0.0107
+          ]
+        }
+      },
+      "League1": {
+        "matches": 1104,
+        "outcome": {
+          "difference": 0.0007,
+          "difference_95ci": [
+            -0.0042,
+            0.0061
+          ]
+        },
+        "ou25": {
+          "difference": 0.0004,
+          "difference_95ci": [
+            -0.0031,
+            0.0039
+          ]
+        }
+      },
+      "Ligue1": {
+        "matches": 981,
+        "outcome": {
+          "difference": 0.0002,
+          "difference_95ci": [
+            -0.0063,
+            0.007
+          ]
+        },
+        "ou25": {
+          "difference": 0.0058,
+          "difference_95ci": [
+            0.0002,
+            0.0111
+          ]
+        }
+      },
+      "SerieA": {
+        "matches": 1140,
+        "outcome": {
+          "difference": 0.0017,
+          "difference_95ci": [
+            -0.0037,
+            0.0071
+          ]
+        },
+        "ou25": {
+          "difference": 0.0029,
+          "difference_95ci": [
+            -0.0015,
+            0.0074
+          ]
+        }
+      }
+    }
+  }
+}

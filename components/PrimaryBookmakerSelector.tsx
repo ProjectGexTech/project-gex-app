@@ -31,7 +31,7 @@ export default function PrimaryBookmakerSelector() {
       </select>
       
       <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-        This will be pre-selected when generating booking codes
+        Shown as your preferred bookmaker in the header
       </p>
     </div>
   );

@@ -1,28 +1,12 @@
 // Enhanced Odds Transformer with Real Stats Integration
 import { footballStatsService, APIFootballTeamStats, APIFootballH2H } from './footballStatsAPI';
-import { Match, TeamForm, HeadToHead, Prediction, ConfidenceLevel, DataQualityInfo } from './types';
+import { Match, TeamForm, HeadToHead, H2HGame, Prediction, ConfidenceLevel, DataQualityInfo } from './types';
+import { getTeamHistory, HistoryTeamRecord, HistoryMeeting } from './teamHistoryAPI';
 
-interface OddsAPIMatch {
-  id: string;
-  sport_key: string;
-  sport_title: string;
-  commence_time: string;
-  home_team: string;
-  away_team: string;
-  bookmakers: Array<{
-    key: string;
-    title: string;
-    last_update: string;
-    markets: Array<{
-      key: string;
-      last_update: string;
-      outcomes: Array<{
-        name: string;
-        price: number;
-      }>;
-    }>;
-  }>;
-}
+// Shown when stats can't be fetched: zero games played, so every prediction factor that
+// uses them is skipped instead of being fed invented numbers
+const EMPTY_FORM: TeamForm = { form: 'N/A', gamesPlayed: 0, wins: 0, draws: 0, losses: 0, goalsScored: 0, goalsConceded: 0 };
+const EMPTY_H2H: HeadToHead = { totalMeetings: 0, homeWins: 0, awayWins: 0, draws: 0, lastResults: [], games: [] };
 
 /**
  * Transform API-Football stats to our TeamForm format
@@ -32,16 +16,7 @@ function transformTeamStats(
   isHome: boolean
 ): TeamForm {
   if (!stats) {
-    // Return fallback data if stats unavailable
-    return {
-      form: 'WWDLW',
-      gamesPlayed: 10,
-      wins: 6,
-      draws: 2,
-      losses: 2,
-      goalsScored: 18,
-      goalsConceded: 10,
-    };
+    return { ...EMPTY_FORM };
   }
 
   const venue = isHome ? 'home' : 'away';
@@ -58,43 +33,43 @@ function transformTeamStats(
 }
 
 /**
- * Transform API-Football H2H to our HeadToHead format
+ * Transform API-Football H2H to our HeadToHead format.
+ * Fixtures are matched to our teams by API-Football team ID, because the odds feed and
+ * API-Football spell some names differently ("Wolves" vs "Wolverhampton Wanderers").
+ * Games are sorted most recent first; each game's `result` is from that fixture's
+ * home side, while homeWins/awayWins/lastResults are from OUR home and away team.
  */
-
 function transformH2H(
   h2hMatches: APIFootballH2H[],
   homeTeam: string,
   awayTeam: string
 ): HeadToHead {
   if (!h2hMatches.length) {
-    // Return fallback data if H2H unavailable
-    return {
-      totalMeetings: 5,
-      homeWins: 2,
-      awayWins: 2,
-      draws: 1,
-      lastResults: ['H', 'A', 'D', 'H', 'A'],
-      games: [],
-    };
+    return { ...EMPTY_H2H, lastResults: [], games: [] };
   }
+
+  const homeTeamId = footballStatsService.getKnownTeamId(homeTeam);
+  const ourName = (team: { id: number; name: string }) =>
+    team.id === homeTeamId ? homeTeam : awayTeam;
+
+  const sorted = [...h2hMatches].sort(
+    (a, b) => new Date(b.fixture.date).getTime() - new Date(a.fixture.date).getTime()
+  );
 
   let homeWins = 0;
   let awayWins = 0;
   let draws = 0;
   const lastResults: string[] = [];
-  const games: any[] = [];
+  const games: H2HGame[] = [];
 
-  h2hMatches.forEach((match) => {
-    const homeTeamInMatch = match.teams.home.name;
-    const awayTeamInMatch = match.teams.away.name;
+  sorted.forEach((match) => {
     const isHomeWinner = match.teams.home.winner;
-    const isAwayWinner = match.teams.away.winner;
+    const fixtureHome = ourName(match.teams.home);
 
-    // Add game to history
     games.push({
       date: match.fixture.date,
-      homeTeam: homeTeamInMatch,
-      awayTeam: awayTeamInMatch,
+      homeTeam: fixtureHome,
+      awayTeam: ourName(match.teams.away),
       homeGoals: match.goals.home,
       awayGoals: match.goals.away,
       result: isHomeWinner === null ? 'D' : (isHomeWinner ? 'H' : 'A'),
@@ -103,29 +78,17 @@ function transformH2H(
     if (isHomeWinner === null) {
       draws++;
       lastResults.push('D');
-    } else if (homeTeamInMatch === homeTeam) {
-      // Match where our home team was actually home
-      if (isHomeWinner) {
-        homeWins++;
-        lastResults.push('H');
-      } else {
-        awayWins++;
-        lastResults.push('A');
-      }
+    } else if (isHomeWinner === (fixtureHome === homeTeam)) {
+      homeWins++;
+      lastResults.push('H');
     } else {
-      // Match where our home team was away
-      if (isAwayWinner) {
-        homeWins++;
-        lastResults.push('H');
-      } else {
-        awayWins++;
-        lastResults.push('A');
-      }
+      awayWins++;
+      lastResults.push('A');
     }
   });
 
   return {
-    totalMeetings: h2hMatches.length,
+    totalMeetings: sorted.length,
     homeWins,
     awayWins,
     draws,
@@ -208,72 +171,146 @@ function calculateEnhancedPrediction(
   };
 }
 
+/** TeamForm from the ML server's match history (this season, all venues) */
+function formFromHistory(record: HistoryTeamRecord): TeamForm {
+  const count = (result: string) => record.form.split('').filter(r => r === result).length;
+  return {
+    form: record.form,
+    gamesPlayed: record.games_played,
+    wins: count('W'),
+    draws: count('D'),
+    losses: count('L'),
+    goalsScored: record.goals_scored,
+    goalsConceded: record.goals_conceded,
+  };
+}
+
+/** HeadToHead from history meetings (most recent first, already in the app's team names) */
+function h2hFromHistory(meetings: HistoryMeeting[], homeTeam: string): HeadToHead {
+  let homeWins = 0;
+  let awayWins = 0;
+  let draws = 0;
+  const lastResults: string[] = [];
+
+  const games: H2HGame[] = meetings.map(m => {
+    const result = m.home_goals === m.away_goals ? 'D' : m.home_goals > m.away_goals ? 'H' : 'A';
+    if (result === 'D') {
+      draws++;
+      lastResults.push('D');
+    } else if ((result === 'H') === (m.home_team === homeTeam)) {
+      homeWins++;
+      lastResults.push('H');
+    } else {
+      awayWins++;
+      lastResults.push('A');
+    }
+    return {
+      date: m.date ?? '',
+      homeTeam: m.home_team,
+      awayTeam: m.away_team,
+      homeGoals: m.home_goals,
+      awayGoals: m.away_goals,
+      result,
+    };
+  });
+
+  return { totalMeetings: games.length, homeWins, awayWins, draws, lastResults: lastResults.slice(0, 5), games };
+}
+
 /**
- * Enhance a single match with real stats data
+ * Enhance a single match with real stats data.
+ * Source order: the ML server's own match history (free, has this season), then
+ * API-Football (its free plan has no current-season stats). When neither has the
+ * data it stays empty and dataQuality says why; the odds-based prediction is only
+ * replaced when both form and H2H are real.
  */
 export async function enhanceMatchWithStats(match: Partial<Match>): Promise<Match> {
+  const homeTeamName = match.homeTeam?.name || '';
+  const awayTeamName = match.awayTeam?.name || '';
+  const matchDate = match.date ? new Date(match.date) : new Date();
+
   try {
-    const homeTeamName = match.homeTeam?.name || '';
-    const awayTeamName = match.awayTeam?.name || '';
+    let homeForm: TeamForm = { ...EMPTY_FORM };
+    let awayForm: TeamForm = { ...EMPTY_FORM };
+    let h2h: HeadToHead = { ...EMPTY_H2H, lastResults: [], games: [] };
+    let formReason: string | undefined;
+    let h2hReason: string | undefined;
+    let sourceNote: string | undefined;
 
-    console.log(`🔄 [${homeTeamName} vs ${awayTeamName}] Enhancing with real stats...`);
+    const history = match.homeTeam && match.awayTeam
+      ? await getTeamHistory({ sportKey: match.sportKey, homeTeam: match.homeTeam, awayTeam: match.awayTeam })
+      : { error: 'Match is missing team names' };
 
-    // Fetch real stats in parallel
-    const [homeStats, awayStats, h2hData] = await Promise.all([
-      footballStatsService.fetchTeamStats(homeTeamName),
-      footballStatsService.fetchTeamStats(awayTeamName),
-      footballStatsService.fetchH2H(homeTeamName, awayTeamName),
-    ]);
+    if ('data' in history) {
+      const { data } = history;
+      // Form needs both teams; with only one side there's nothing to compare
+      const noGames = [
+        data.home.games_played === 0 ? homeTeamName : null,
+        data.away.games_played === 0 ? awayTeamName : null,
+      ].filter(Boolean);
+      if (noGames.length === 0) {
+        homeForm = formFromHistory(data.home);
+        awayForm = formFromHistory(data.away);
+      } else {
+        formReason = `${noGames.join(' and ')} ${noGames.length > 1 ? 'have' : 'has'} no league games this season in our match history`;
+      }
 
-    // Transform to our format
-    const homeForm = transformTeamStats(homeStats, true);
-    const awayForm = transformTeamStats(awayStats, false);
-    const h2h = transformH2H(h2hData, homeTeamName, awayTeamName);
+      if (data.h2h.length > 0) {
+        h2h = h2hFromHistory(data.h2h, homeTeamName);
+      } else {
+        h2hReason = 'These teams have no meetings in our match history (since 2012)';
+      }
+      sourceNote = data.data_through ? `Match history up to ${data.data_through}` : 'Match history';
+    } else {
+      const [homeStats, awayStats, h2hData] = await Promise.all([
+        footballStatsService.fetchTeamStats(homeTeamName, match.sportKey, matchDate),
+        footballStatsService.fetchTeamStats(awayTeamName, match.sportKey, matchDate),
+        footballStatsService.fetchH2H(homeTeamName, awayTeamName),
+      ]);
 
-    const homeStatsSource = footballStatsService.getDataSource(`stats_${homeTeamName}`)?.source ?? 'real';
-    const awayStatsSource = footballStatsService.getDataSource(`stats_${awayTeamName}`)?.source ?? 'real';
-    const homeFormSource = footballStatsService.getDataSource(`recent_form_${homeTeamName}`)?.source ?? 'real';
-    const awayFormSource = footballStatsService.getDataSource(`recent_form_${awayTeamName}`)?.source ?? 'real';
-    const h2hSource = footballStatsService.getDataSource(`h2h_${homeTeamName}_${awayTeamName}`)?.source ?? 'real';
+      if (homeStats && awayStats) {
+        homeForm = transformTeamStats(homeStats, true);
+        awayForm = transformTeamStats(awayStats, false);
+      } else {
+        const statsReason = [
+          footballStatsService.getDataSource(`stats_${homeTeamName}`)?.reason,
+          footballStatsService.getDataSource(`stats_${awayTeamName}`)?.reason,
+        ].filter(Boolean);
+        formReason = [...new Set(statsReason)].join(' | ') || 'Team stats unavailable';
+      }
 
-    const homeStatsReason = footballStatsService.getDataSource(`stats_${homeTeamName}`)?.reason;
-    const awayStatsReason = footballStatsService.getDataSource(`stats_${awayTeamName}`)?.reason;
-    const homeFormReason = footballStatsService.getDataSource(`recent_form_${homeTeamName}`)?.reason;
-    const awayFormReason = footballStatsService.getDataSource(`recent_form_${awayTeamName}`)?.reason;
-    const h2hReason = footballStatsService.getDataSource(`h2h_${homeTeamName}_${awayTeamName}`)?.reason;
+      if (h2hData.length > 0) {
+        h2h = transformH2H(h2hData, homeTeamName, awayTeamName);
+      } else {
+        h2hReason = footballStatsService.getDataSource(`h2h_${homeTeamName}_${awayTeamName}`)?.reason
+          || 'Head-to-head data unavailable';
+      }
+      if (homeStats || h2hData.length > 0) sourceNote = 'API-Football';
 
-    const formSource = homeFormSource === 'mock' || awayFormSource === 'mock' || homeStatsSource === 'mock' || awayStatsSource === 'mock'
-      ? 'mock'
-      : 'real';
-    const overallSource = formSource === 'mock' || h2hSource === 'mock' ? 'mock' : 'real';
+      // Say why our own history wasn't used, so both failures are visible
+      formReason &&= `${history.error}. ${formReason}`;
+      h2hReason &&= `${history.error}. ${h2hReason}`;
+    }
+
+    const formIsReal = formReason === undefined;
+    const h2hIsReal = h2hReason === undefined;
 
     const dataQuality: DataQualityInfo = {
-      form: formSource,
-      h2h: h2hSource,
-      overall: overallSource,
-      formReason:
-        formSource === 'mock'
-          ? [homeFormReason, awayFormReason, homeStatsReason, awayStatsReason].filter(Boolean).join(' | ') || 'Form data fell back to generated mock statistics'
-          : undefined,
-      h2hReason:
-        h2hSource === 'mock'
-          ? h2hReason || 'Head-to-head data fell back to generated mock results'
-          : undefined,
-      overallReason:
-        overallSource === 'mock'
-          ? 'At least one analysis input used fallback/mock data'
-          : 'All analysis inputs came from live API data',
-      notes: [
-        ...(overallSource === 'mock' ? ['Fallback/mock data used for one or more analysis inputs'] : []),
-        ...(h2hSource === 'mock' ? ['Head-to-head data used fallback data'] : []),
-        ...(formSource === 'mock' ? ['Form/statistics used fallback data'] : []),
-      ],
+      form: formIsReal ? 'real' : 'unavailable',
+      h2h: h2hIsReal ? 'real' : 'unavailable',
+      overall: formIsReal && h2hIsReal ? 'real' : 'unavailable',
+      formReason,
+      h2hReason,
+      overallReason: formIsReal && h2hIsReal
+        ? 'All analysis inputs came from real match data'
+        : 'Some analysis inputs were unavailable and were left out',
+      sourceNote,
     };
 
-    console.log(`✅ [${homeTeamName} vs ${awayTeamName}] Enhanced: ${h2h.totalMeetings} H2H games, Form: ${homeForm.wins}W-${homeForm.draws}D vs ${awayForm.wins}W-${awayForm.draws}D`);
-
-    // Calculate enhanced prediction
-    const prediction = calculateEnhancedPrediction(homeForm, awayForm, h2h);
+    // Without real form and H2H, keep the odds-based prediction from the transformer
+    const prediction = formIsReal && h2hIsReal
+      ? calculateEnhancedPrediction(homeForm, awayForm, h2h)
+      : match.prediction;
 
     return {
       ...match,
@@ -286,15 +323,17 @@ export async function enhanceMatchWithStats(match: Partial<Match>): Promise<Matc
       prediction,
     } as Match;
   } catch (error) {
-    console.warn(`⚠️ [${match.homeTeam?.name} vs ${match.awayTeam?.name}] Stats enhancement failed:`, error);
-    // Return match as-is if enhancement fails
+    console.warn(`[${homeTeamName} vs ${awayTeamName}] Stats enhancement failed:`, error);
     return {
       ...match,
+      form: { home: { ...EMPTY_FORM }, away: { ...EMPTY_FORM } },
+      h2h: { ...EMPTY_H2H, lastResults: [], games: [] },
       dataQuality: {
-        form: 'mock',
-        h2h: 'mock',
-        overall: 'mock',
-        notes: ['Stats enhancement failed; fallback/mock data assumed'],
+        form: 'unavailable',
+        h2h: 'unavailable',
+        overall: 'unavailable',
+        formReason: 'Stats could not be loaded',
+        h2hReason: 'Stats could not be loaded',
       },
     } as Match;
   }
@@ -320,4 +359,4 @@ export async function enhanceMatchesWithStats(matches: Partial<Match>[]): Promis
   }
 }
 
-export { transformTeamStats, transformH2H, calculateEnhancedPrediction };
+export { transformTeamStats, transformH2H, calculateEnhancedPrediction, formFromHistory, h2hFromHistory };

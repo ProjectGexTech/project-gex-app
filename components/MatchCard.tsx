@@ -1,12 +1,14 @@
 'use client';
 
-import { Match } from '@/lib/types';
+import { Match, MLPrediction } from '@/lib/types';
 import { MarketType } from '@/lib/types';
+import { getMLPrediction } from '@/lib/mlPredictionAPI';
+import MLInfoModal from '@/components/MLInfoModal';
 import { useGextenStore } from '@/lib/store';
 import { format } from 'date-fns';
 import {
   TrendingUp, TrendingDown, Minus, Calendar, Activity, Brain,
-  Loader2, ChevronDown, ChevronUp, Trophy, Target, BarChart3, AlertCircle,
+  Loader2, ChevronDown, ChevronUp, Trophy, Target, BarChart3, AlertCircle, HelpCircle,
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -89,6 +91,10 @@ export default function MatchCard({ match }: MatchCardProps) {
   } = useGextenStore();
 
   const [showAIAnalysis, setShowAIAnalysis] = useState(false);
+  const [mlPrediction, setMlPrediction] = useState<MLPrediction | null>(null);
+  const [mlLoading, setMlLoading] = useState(false);
+  const [mlError, setMlError] = useState<string | null>(null);
+  const [showMLInfo, setShowMLInfo] = useState(false);
 
   const flags             = getSportFlags(match.sportKey, match.league);
   const { supportsDraw }  = flags;
@@ -108,7 +114,8 @@ export default function MatchCard({ match }: MatchCardProps) {
 
   const extractLastFiveForm = (formString?: string): Array<'W' | 'L' | 'D'> => {
     if (!formString || formString === 'N/A') return [];
-    return formString.split('').map(normalizeResultChar).slice(0, 5);
+    // Season form strings run oldest → newest, so the last 5 characters are the latest games
+    return formString.split('').map(normalizeResultChar).slice(-5);
   };
 
   const getTeamH2HResult = (game: any, teamName: string): 'W' | 'L' | 'D' => {
@@ -127,16 +134,47 @@ export default function MatchCard({ match }: MatchCardProps) {
   const awayH2HLastFive  = h2hGamesLastFive.map(g => getTeamH2HResult(g, match.awayTeam.name));
   const hasRealH2HSection = h2hGamesLastFive.length > 0;
 
-  const explanationLines = (detailedPrediction?.explanation || []).filter(line => {
-    if (!dataQuality) return true;
-    if (dataQuality.form === 'mock' && /recent form/i.test(line)) return false;
-    if (dataQuality.h2h  === 'mock' && /head-to-head/i.test(line)) return false;
-    return true;
-  });
+  const explanationLines = detailedPrediction?.explanation || [];
+
+  // Bookmakers' view of the match: averaged 1X2 odds with the margin removed
+  const marketProbs = (() => {
+    const h2hOdds = match.odds.h2h;
+    if (!h2hOdds?.home || !h2hOdds?.away) return null;
+    const inv = { home: 1 / h2hOdds.home, draw: h2hOdds.draw ? 1 / h2hOdds.draw : 0, away: 1 / h2hOdds.away };
+    const total = inv.home + inv.draw + inv.away;
+    return { home: (inv.home / total) * 100, draw: (inv.draw / total) * 100, away: (inv.away / total) * 100 };
+  })();
 
   const handleShowAIAnalysis = async () => {
-    if (!showAIAnalysis && !detailedPrediction) {
-      await fetchDetailedPrediction(match.id);
+    if (!showAIAnalysis) {
+      const tasks: Promise<void>[] = [];
+
+      if (!detailedPrediction) {
+        tasks.push(fetchDetailedPrediction(match.id));
+      }
+
+      if (!mlPrediction && !mlLoading) {
+        tasks.push(
+          (async () => {
+            setMlLoading(true);
+            setMlError(null);
+            try {
+              const result = await getMLPrediction(match);
+              setMlPrediction(result);
+            } catch (err) {
+              setMlError(
+                err instanceof Error
+                  ? err.message
+                  : 'ML server offline. Run python_model/start.bat to enable.'
+              );
+            } finally {
+              setMlLoading(false);
+            }
+          })()
+        );
+      }
+
+      await Promise.all(tasks);
     }
     setShowAIAnalysis(!showAIAnalysis);
   };
@@ -488,7 +526,7 @@ export default function MatchCard({ match }: MatchCardProps) {
           {isLoading ? (
             <><Loader2 className="w-4 h-4 animate-spin" /><span>Loading Analysis...</span></>
           ) : (
-            <><Brain className="w-4 h-4" /><span>{showAIAnalysis ? 'Hide' : 'Show'} AI Analysis</span>
+            <><Brain className="w-4 h-4" /><span>{showAIAnalysis ? 'Hide' : 'Show'} Analysis</span>
               {showAIAnalysis ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
             </>
           )}
@@ -503,28 +541,32 @@ export default function MatchCard({ match }: MatchCardProps) {
           <div className="bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl p-5 text-white shadow-lg">
             <div className="flex items-center gap-2 mb-4">
               <Trophy className="w-5 h-5" />
-              <h3 className="font-bold text-lg">Predicted Outcome</h3>
+              <h3 className="font-bold text-lg">Our Estimate</h3>
             </div>
             <div className={`grid ${supportsDraw ? 'grid-cols-3' : 'grid-cols-2'} gap-4 text-center`}>
               <div className={`p-3 rounded-lg ${detailedPrediction.predictedWinner === 'home' ? 'bg-white/20 ring-2 ring-white' : 'bg-white/10'}`}>
                 <div className="text-sm opacity-90 mb-1">Home Win</div>
-                <div className="text-2xl font-bold">{detailedPrediction.homeWin}%</div>
+                <div className="text-2xl font-bold">{detailedPrediction.homeWin.toFixed(1)}%</div>
+                {marketProbs && <div className="text-xs opacity-80 mt-1">Bookmakers {marketProbs.home.toFixed(1)}%</div>}
               </div>
               {supportsDraw && (
                 <div className={`p-3 rounded-lg ${detailedPrediction.predictedWinner === 'draw' ? 'bg-white/20 ring-2 ring-white' : 'bg-white/10'}`}>
                   <div className="text-sm opacity-90 mb-1">Draw</div>
-                  <div className="text-2xl font-bold">{detailedPrediction.draw}%</div>
+                  <div className="text-2xl font-bold">{detailedPrediction.draw.toFixed(1)}%</div>
+                  {marketProbs && <div className="text-xs opacity-80 mt-1">Bookmakers {marketProbs.draw.toFixed(1)}%</div>}
                 </div>
               )}
               <div className={`p-3 rounded-lg ${detailedPrediction.predictedWinner === 'away' ? 'bg-white/20 ring-2 ring-white' : 'bg-white/10'}`}>
                 <div className="text-sm opacity-90 mb-1">Away Win</div>
-                <div className="text-2xl font-bold">{detailedPrediction.awayWin}%</div>
+                <div className="text-2xl font-bold">{detailedPrediction.awayWin.toFixed(1)}%</div>
+                {marketProbs && <div className="text-xs opacity-80 mt-1">Bookmakers {marketProbs.away.toFixed(1)}%</div>}
               </div>
             </div>
-            <div className="mt-4 pt-4 border-t border-white/20 flex items-center justify-between">
-              <span className="text-sm opacity-90">Confidence Level</span>
-              <span className="font-bold text-lg capitalize">{detailedPrediction.confidence}</span>
-            </div>
+            <p className="mt-4 pt-4 border-t border-white/20 text-xs opacity-90">
+              A rule-based estimate: it starts from the bookmakers&apos; odds and adjusts for form,
+              head-to-head and home advantage. It has not been tested against real results, so a
+              difference from the bookmakers is not evidence of value.
+            </p>
           </div>
 
           {/* Recent Form */}
@@ -551,7 +593,9 @@ export default function MatchCard({ match }: MatchCardProps) {
                 )}
               </div>
             ) : (
-              <div className="text-sm text-slate-500">Not available</div>
+              <div className="text-sm text-slate-500">
+                Not enough data{dataQuality?.formReason ? `: ${dataQuality.formReason}` : ''}
+              </div>
             )}
           </div>
 
@@ -575,21 +619,14 @@ export default function MatchCard({ match }: MatchCardProps) {
                 </div>
               </div>
             ) : (
-              <div className="text-sm text-slate-500">Not available</div>
+              <div className="text-sm text-slate-500">
+                Not enough data{dataQuality?.h2hReason ? `: ${dataQuality.h2hReason}` : ''}
+              </div>
             )}
           </div>
 
-          {/* Recommended Bet */}
-          {detailedPrediction.recommendedBet && (
-            <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-5 border-2 border-green-200 shadow-sm">
-              <div className="flex items-center gap-2 mb-3">
-                <Target className="w-5 h-5 text-green-600" />
-                <h3 className="font-bold text-slate-900">Recommended Bet</h3>
-              </div>
-              <div className="bg-white rounded-lg p-4 border border-green-200">
-                <p className="text-lg font-semibold text-green-700">{detailedPrediction.recommendedBet}</p>
-              </div>
-            </div>
+          {dataQuality?.sourceNote && (hasRealFormSection || hasRealH2HSection) && (
+            <p className="-mt-2 text-xs text-slate-500">Form and head-to-head source: {dataQuality.sourceNote}</p>
           )}
 
           {/* AI Explanation */}
@@ -597,7 +634,7 @@ export default function MatchCard({ match }: MatchCardProps) {
             <div className="bg-white rounded-xl p-5 border-2 border-slate-200 shadow-sm">
               <div className="flex items-center gap-2 mb-4">
                 <Brain className="w-5 h-5 text-blue-600" />
-                <h3 className="font-bold text-slate-900">AI Analysis</h3>
+                <h3 className="font-bold text-slate-900">How the Estimate Was Built</h3>
               </div>
               <ul className="space-y-2">
                 {explanationLines.map((line, idx) => (
@@ -694,6 +731,176 @@ export default function MatchCard({ match }: MatchCardProps) {
           </div>
         </div>
       )}
+
+      {/* ── ML Model Predictions panel ─────────────────────────────────────── */}
+      {showAIAnalysis && (mlLoading || mlPrediction || mlError) && (
+        <div className="mt-4 animate-in fade-in slide-in-from-top-2 duration-300">
+          <div className="bg-gradient-to-br from-violet-50 to-purple-50 rounded-xl border-2 border-violet-200 p-5 shadow-sm">
+
+            {/* Header */}
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 bg-violet-600 rounded-lg flex items-center justify-center">
+                  <Brain className="w-4 h-4 text-white" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-900 text-sm">ML Model Predictions</h3>
+                  <span className="text-xs text-violet-600 font-medium">XGBoost + Calibrated Probabilities</span>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold px-2 py-1 rounded-full bg-amber-100 text-amber-800">
+                  Experimental
+                </span>
+                <button
+                  onClick={() => setShowMLInfo(true)}
+                  title="How does this work?"
+                  className="w-7 h-7 rounded-full bg-violet-100 hover:bg-violet-200 text-violet-600 flex items-center justify-center transition-colors"
+                >
+                  <HelpCircle className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Loading state */}
+            {mlLoading && (
+              <div className="flex items-center justify-center gap-2 py-6 text-violet-600">
+                <Loader2 className="w-5 h-5 animate-spin" />
+                <span className="text-sm font-medium">Running ML model...</span>
+              </div>
+            )}
+
+            {/* Error state */}
+            {mlError && !mlLoading && (
+              <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-lg p-3">
+                <AlertCircle className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
+                {/offline/i.test(mlError) ? (
+                  <div>
+                    <p className="text-sm font-semibold text-amber-800">ML Server Offline</p>
+                    <p className="text-xs text-amber-700 mt-1">
+                      Run <code className="bg-amber-100 px-1 rounded">python_model/start.bat</code> to enable ML predictions.
+                    </p>
+                  </div>
+                ) : (
+                  <div>
+                    <p className="text-sm font-semibold text-amber-800">ML Prediction Unavailable</p>
+                    <p className="text-xs text-amber-700 mt-1">{mlError}</p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Predictions grid */}
+            {mlPrediction && !mlLoading && (
+              <div className="space-y-4">
+                <p className="text-xs text-slate-600">
+                  In testing on past seasons this model matched the bookmakers&apos; odds but did not beat
+                  them. Treat it as a second opinion, not a tip.
+                </p>
+
+                {/* 1X2 Outcome */}
+                <div>
+                  <p className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">Match Outcome (1X2)</p>
+                  <div className={`grid ${supportsDraw ? 'grid-cols-3' : 'grid-cols-2'} gap-2`}>
+                    <div className={`rounded-lg p-3 text-center border-2 ${
+                      mlPrediction.predicted_winner === 'home'
+                        ? 'bg-violet-600 border-violet-600 text-white'
+                        : 'bg-white border-violet-200 text-slate-900'
+                    }`}>
+                      <div className="text-xs opacity-80 mb-1">Home Win</div>
+                      <div className="text-xl font-bold">{mlPrediction.outcome.home_win}%</div>
+                    </div>
+                    {supportsDraw && (
+                      <div className={`rounded-lg p-3 text-center border-2 ${
+                        mlPrediction.predicted_winner === 'draw'
+                          ? 'bg-violet-600 border-violet-600 text-white'
+                          : 'bg-white border-violet-200 text-slate-900'
+                      }`}>
+                        <div className="text-xs opacity-80 mb-1">Draw</div>
+                        <div className="text-xl font-bold">{mlPrediction.outcome.draw}%</div>
+                      </div>
+                    )}
+                    <div className={`rounded-lg p-3 text-center border-2 ${
+                      mlPrediction.predicted_winner === 'away'
+                        ? 'bg-violet-600 border-violet-600 text-white'
+                        : 'bg-white border-violet-200 text-slate-900'
+                    }`}>
+                      <div className="text-xs opacity-80 mb-1">Away Win</div>
+                      <div className="text-xl font-bold">{mlPrediction.outcome.away_win}%</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* OU2.5 + BTTS side by side */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-white rounded-lg border-2 border-violet-100 p-3">
+                    <p className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">Over/Under 2.5</p>
+                    <div className="space-y-1.5">
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-slate-600">Over 2.5</span>
+                        <span className="font-bold text-slate-900 text-sm">{mlPrediction.over_under_25.over}%</span>
+                      </div>
+                      <div className="h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-violet-500 rounded-full"
+                          style={{ width: `${mlPrediction.over_under_25.over}%` }}
+                        />
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-slate-600">Under 2.5</span>
+                        <span className="font-bold text-slate-900 text-sm">{mlPrediction.over_under_25.under}%</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-white rounded-lg border-2 border-violet-100 p-3">
+                    <p className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">Both Teams Score</p>
+                    <div className="space-y-1.5">
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-slate-600">Yes</span>
+                        <span className="font-bold text-slate-900 text-sm">{mlPrediction.btts.yes}%</span>
+                      </div>
+                      <div className="h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-violet-500 rounded-full"
+                          style={{ width: `${mlPrediction.btts.yes}%` }}
+                        />
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-slate-600">No</span>
+                        <span className="font-bold text-slate-900 text-sm">{mlPrediction.btts.no}%</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {mlPrediction.stale_history && (
+                  <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-lg p-2">
+                    <AlertCircle className="w-3.5 h-3.5 text-amber-600 mt-0.5 shrink-0" />
+                    <p className="text-xs text-amber-700">
+                      Match history only runs to {mlPrediction.data_through ?? 'an earlier date'}, so recent
+                      form may be missing. Run <code className="bg-amber-100 px-1 rounded">python train.py --refresh</code> to update.
+                    </p>
+                  </div>
+                )}
+
+                {/* Footer */}
+                <div className="pt-2 border-t border-violet-200 flex items-center justify-between">
+                  <span className="text-xs text-slate-500">
+                    Trained on {mlPrediction.training_samples.toLocaleString()} historical matches
+                    {mlPrediction.data_through && ` · data to ${mlPrediction.data_through}`}
+                  </span>
+                  <span className="text-xs text-violet-600 font-medium">
+                    v{mlPrediction.model_version}
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      <MLInfoModal isOpen={showMLInfo} onClose={() => setShowMLInfo(false)} />
     </div>
   );
 }

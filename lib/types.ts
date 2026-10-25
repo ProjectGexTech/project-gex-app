@@ -3,7 +3,8 @@
 export type MarketType = 'h2h' | 'ou25' | 'btts' | 'dc' | 'spreads' | 'teamTotals' | 'drawNoBet' | 'doubleChance';
 
 export type ConfidenceLevel = 'low' | 'medium' | 'high';
-export type DataSource = 'real' | 'mock';
+// 'unavailable' means the data couldn't be fetched; nothing is ever filled in with made-up values
+export type DataSource = 'real' | 'unavailable';
 
 export interface DataQualityInfo {
   form: DataSource;
@@ -12,6 +13,8 @@ export interface DataQualityInfo {
   formReason?: string;
   h2hReason?: string;
   overallReason?: string;
+  // Where real form/H2H came from, shown on the match card (e.g. "Match history up to 2026-10-19")
+  sourceNote?: string;
   notes?: string[];
 }
 
@@ -193,10 +196,25 @@ export interface BettingSelection {
   odds: number;
 }
 
-export interface BookingCode {
-  code: string;
-  bookmaker: string;
-  selections: BettingSelection[];
-  totalOdds: number;
-  createdAt: Date;
+export interface MLPrediction {
+  outcome: {
+    home_win: number;
+    draw: number;
+    away_win: number;
+  };
+  over_under_25: {
+    over: number;
+    under: number;
+  };
+  btts: {
+    yes: number;
+    no: number;
+  };
+  confidence: ConfidenceLevel;
+  predicted_winner: 'home' | 'draw' | 'away';
+  model_version: string;
+  training_samples: number;
+  teams_matched?: { home: string; away: string };
+  data_through?: string | null;
+  stale_history?: boolean; // team history older than ~3 weeks: predictions may lag recent form
 }

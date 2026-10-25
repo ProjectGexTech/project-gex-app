@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { Match, BettingSelection, BookingCode, SearchFilters, DetailedAIPrediction } from './types';
+import { Match, BettingSelection, SearchFilters, DetailedAIPrediction } from './types';
 import { filterMatches } from './dummyData';
 import { oddsAPIService } from './oddsAPI';
 import { transformOddsAPIMatches } from './oddsTransformer';
@@ -11,7 +11,6 @@ interface GextenStore {
   allMatches: Match[];
   filteredMatches: Match[];
   selectedMatches: Map<string, BettingSelection>;
-  bookingCode: BookingCode | null;
   isLoading: boolean;
   error: string | null;
   lastUpdated: Date | null;
@@ -49,8 +48,6 @@ interface GextenStore {
   selectMatch: (selection: BettingSelection) => void;
   deselectMatch: (matchId: string) => void;
   clearSelections: () => void;
-  generateBookingCode: (bookmaker: string) => void;
-  clearBookingCode: () => void;
   loadSavedFilters: () => void;
   fetchDetailedPrediction: (matchId: string) => Promise<void>;
   getDetailedPrediction: (matchId: string) => DetailedAIPrediction | undefined;
@@ -89,7 +86,6 @@ export const useGextenStore = create<GextenStore>((set, get) => ({
   allMatches: [],
   filteredMatches: [],
   selectedMatches: new Map(),
-  bookingCode: null,
   isLoading: false,
   error: null,
   lastUpdated: null,
@@ -280,33 +276,6 @@ export const useGextenStore = create<GextenStore>((set, get) => ({
   
   clearSelections: () => {
     set({ selectedMatches: new Map() });
-  },
-  
-  generateBookingCode: (bookmaker) => {
-    const { selectedMatches } = get();
-    const selections = Array.from(selectedMatches.values());
-    
-    if (selections.length === 0) return;
-    
-    // Calculate total odds
-    const totalOdds = selections.reduce((acc, sel) => acc * sel.odds, 1);
-    
-    // Generate booking code
-    const code = `BET-${bookmaker.toUpperCase().slice(0, 3)}-${Date.now().toString(36).toUpperCase()}`;
-    
-    set({
-      bookingCode: {
-        code,
-        bookmaker,
-        selections,
-        totalOdds: +totalOdds.toFixed(2),
-        createdAt: new Date(),
-      }
-    });
-  },
-  
-  clearBookingCode: () => {
-    set({ bookingCode: null });
   },
   
   loadSavedFilters: () => {

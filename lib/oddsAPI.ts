@@ -23,14 +23,10 @@ interface OddsAPIMatch {
   }>;
 }
 
-import { useAPIKeysStore } from './apiKeysStore';
+import { apiKeyHeaders } from './apiKeyHeaders';
 
-const API_BASE_URL = 'https://api.the-odds-api.com/v4';
-
-// Get API key from store instead of environment variable
-const getAPIKey = () => {
-  return useAPIKeysStore.getState().oddsApiKey;
-};
+// Our server route calls The Odds API with the key entered in the app (or ODDS_API_KEY)
+const API_BASE_URL = '/api/odds';
 
 // Soccer sports available on The Odds API
 // All major leagues supported
@@ -92,11 +88,6 @@ export class OddsAPIService {
   ): Promise<OddsAPIMatch[]> {
     if (leagueKeys.length === 0) {
       throw new Error('No leagues selected');
-    }
-
-    const API_KEY = getAPIKey();
-    if (!API_KEY) {
-      throw new Error('Please configure your Odds API key to fetch matches');
     }
 
     console.log(`🎯 Fetching ${leagueKeys.length} selected league(s):`, leagueKeys);
@@ -166,6 +157,12 @@ export class OddsAPIService {
         }
       });
 
+      // Every league failing (e.g. no key on the server) is an error, not "no matches"
+      const firstFailure = results.find(r => r.status === 'rejected');
+      if (firstFailure && results.every(r => r.status === 'rejected')) {
+        throw firstFailure.reason;
+      }
+
       // Cache the results for this specific query
       this.queryCache.set(cacheKey, {
         data: allMatches,
@@ -189,14 +186,6 @@ export class OddsAPIService {
     if (this.cachedData.length > 0 && now - this.lastFetchTime < this.CACHE_DURATION) {
       // console.log('✅ Returning cached soccer odds data');
       return this.cachedData;
-    }
-
-    const API_KEY = getAPIKey();
-    console.log('🔑 Odds API - Retrieved key from store:', API_KEY ? `${API_KEY.substring(0, 8)}...` : 'null');
-
-    if (!API_KEY) {
-      console.error('❌ Odds API key not configured');
-      throw new Error('Please configure your Odds API key to fetch matches');
     }
 
     try {
@@ -257,13 +246,7 @@ export class OddsAPIService {
     regions: string = 'uk,eu',
     bookmakers: string[] = []
   ): Promise<OddsAPIMatch[]> {
-    const API_KEY = getAPIKey();
-    if (!API_KEY) {
-      throw new Error('API key not configured');
-    }
-    
     const params = new URLSearchParams({
-      apiKey: API_KEY,
       regions: regions,
       markets: markets.join(','),
       oddsFormat: 'decimal',
@@ -283,28 +266,23 @@ export class OddsAPIService {
       method: 'GET',
       headers: {
         'Accept': 'application/json',
+        ...apiKeyHeaders(),
       },
     });
 
-    console.log(`Response:`, response);
-
     if (!response.ok) {
-      const errorText = await response.text();
-      // console.error(`❌ API Error for ${sportKey}:`);
-      // console.error(`   Status: ${response.status} ${response.statusText}`);
-      // console.error(`   Response: ${errorText}`);
-      // console.error(`   URL: ${url}`);
-      
+      const body = await response.json().catch(() => ({}));
+      const serverMessage = (body as Record<string, string>).error ?? (body as Record<string, string>).message;
+
       if (response.status === 401) {
-        throw new Error('Invalid API key. Please check your .env.local file');
+        throw new Error(serverMessage || 'The Odds API rejected the key. Check it with the API keys button');
       } else if (response.status === 429) {
         throw new Error('API rate limit exceeded. Please wait before trying again');
       }
-      throw new Error(`API request failed: ${response.status} ${response.statusText}`);
+      throw new Error(serverMessage || `API request failed: ${response.status} ${response.statusText}`);
     }
 
     const data: OddsAPIMatch[] = await response.json();
-    console.log(`Data for ${sportKey}:`, data);
     // console.log(`   ${sportKey}: ${data.length} matches found`);
     
     // Filter matches to only show those in the specified date range
