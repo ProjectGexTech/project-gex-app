@@ -6,6 +6,7 @@ import { useAPIKeysStore } from '@/lib/apiKeysStore';
 import MatchCard from '@/components/MatchCard';
 import BetSlip from '@/components/BetSlip';
 import APIKeysModal from '@/components/APIKeysModal';
+import AgeGate from '@/components/AgeGate';
 import FilterWizard from '@/components/FilterWizard';
 import { getLeagueByKey, SportType } from '@/lib/leagueConfig';
 import { getMarketAPIKeys } from '@/lib/marketConfig';
@@ -132,6 +133,9 @@ export default function Home() {
   
   return (
     <div className="min-h-screen bg-white">
+      {/* 18+ check, shown above everything else */}
+      <AgeGate />
+
       {/* API Keys Configuration Modal */}
       <APIKeysModal />
       
@@ -367,6 +371,23 @@ export default function Home() {
               <a href="#" className="text-slate-600 hover:text-blue-600 transition-colors">Privacy</a>
               <a href="#" className="text-slate-600 hover:text-blue-600 transition-colors">Support</a>
             </div>
+          </div>
+
+          {/* Responsible gambling */}
+          <div className="mt-6 pt-6 border-t border-slate-200 text-xs text-slate-500 space-y-2">
+            <p>
+              <span className="font-bold text-slate-700">18+ only.</span> Gexten shows odds and estimates for
+              information. It is not betting advice, it can&apos;t place bets, and no estimate here is a
+              guarantee. Only bet what you can afford to lose.
+            </p>
+            <p>
+              If gambling stops being fun, get free, confidential help:{' '}
+              <a href="https://www.begambleaware.org" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">BeGambleAware</a>
+              {' · '}
+              <a href="https://www.gamcare.org.uk" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">GamCare</a>
+              {' · '}
+              <a href="https://www.gamblersanonymous.org" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">Gamblers Anonymous</a>
+            </p>
           </div>
         </div>
       </footer>

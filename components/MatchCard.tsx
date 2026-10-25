@@ -136,6 +136,15 @@ export default function MatchCard({ match }: MatchCardProps) {
 
   const explanationLines = detailedPrediction?.explanation || [];
 
+  // Bookmakers' view of the match: averaged 1X2 odds with the margin removed
+  const marketProbs = (() => {
+    const h2hOdds = match.odds.h2h;
+    if (!h2hOdds?.home || !h2hOdds?.away) return null;
+    const inv = { home: 1 / h2hOdds.home, draw: h2hOdds.draw ? 1 / h2hOdds.draw : 0, away: 1 / h2hOdds.away };
+    const total = inv.home + inv.draw + inv.away;
+    return { home: (inv.home / total) * 100, draw: (inv.draw / total) * 100, away: (inv.away / total) * 100 };
+  })();
+
   const handleShowAIAnalysis = async () => {
     if (!showAIAnalysis) {
       const tasks: Promise<void>[] = [];
@@ -517,7 +526,7 @@ export default function MatchCard({ match }: MatchCardProps) {
           {isLoading ? (
             <><Loader2 className="w-4 h-4 animate-spin" /><span>Loading Analysis...</span></>
           ) : (
-            <><Brain className="w-4 h-4" /><span>{showAIAnalysis ? 'Hide' : 'Show'} AI Analysis</span>
+            <><Brain className="w-4 h-4" /><span>{showAIAnalysis ? 'Hide' : 'Show'} Analysis</span>
               {showAIAnalysis ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
             </>
           )}
@@ -532,28 +541,32 @@ export default function MatchCard({ match }: MatchCardProps) {
           <div className="bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl p-5 text-white shadow-lg">
             <div className="flex items-center gap-2 mb-4">
               <Trophy className="w-5 h-5" />
-              <h3 className="font-bold text-lg">Predicted Outcome</h3>
+              <h3 className="font-bold text-lg">Our Estimate</h3>
             </div>
             <div className={`grid ${supportsDraw ? 'grid-cols-3' : 'grid-cols-2'} gap-4 text-center`}>
               <div className={`p-3 rounded-lg ${detailedPrediction.predictedWinner === 'home' ? 'bg-white/20 ring-2 ring-white' : 'bg-white/10'}`}>
                 <div className="text-sm opacity-90 mb-1">Home Win</div>
-                <div className="text-2xl font-bold">{detailedPrediction.homeWin}%</div>
+                <div className="text-2xl font-bold">{detailedPrediction.homeWin.toFixed(1)}%</div>
+                {marketProbs && <div className="text-xs opacity-80 mt-1">Bookmakers {marketProbs.home.toFixed(1)}%</div>}
               </div>
               {supportsDraw && (
                 <div className={`p-3 rounded-lg ${detailedPrediction.predictedWinner === 'draw' ? 'bg-white/20 ring-2 ring-white' : 'bg-white/10'}`}>
                   <div className="text-sm opacity-90 mb-1">Draw</div>
-                  <div className="text-2xl font-bold">{detailedPrediction.draw}%</div>
+                  <div className="text-2xl font-bold">{detailedPrediction.draw.toFixed(1)}%</div>
+                  {marketProbs && <div className="text-xs opacity-80 mt-1">Bookmakers {marketProbs.draw.toFixed(1)}%</div>}
                 </div>
               )}
               <div className={`p-3 rounded-lg ${detailedPrediction.predictedWinner === 'away' ? 'bg-white/20 ring-2 ring-white' : 'bg-white/10'}`}>
                 <div className="text-sm opacity-90 mb-1">Away Win</div>
-                <div className="text-2xl font-bold">{detailedPrediction.awayWin}%</div>
+                <div className="text-2xl font-bold">{detailedPrediction.awayWin.toFixed(1)}%</div>
+                {marketProbs && <div className="text-xs opacity-80 mt-1">Bookmakers {marketProbs.away.toFixed(1)}%</div>}
               </div>
             </div>
-            <div className="mt-4 pt-4 border-t border-white/20 flex items-center justify-between">
-              <span className="text-sm opacity-90">Confidence Level</span>
-              <span className="font-bold text-lg capitalize">{detailedPrediction.confidence}</span>
-            </div>
+            <p className="mt-4 pt-4 border-t border-white/20 text-xs opacity-90">
+              A rule-based estimate: it starts from the bookmakers&apos; odds and adjusts for form,
+              head-to-head and home advantage. It has not been tested against real results, so a
+              difference from the bookmakers is not evidence of value.
+            </p>
           </div>
 
           {/* Recent Form */}
@@ -616,25 +629,12 @@ export default function MatchCard({ match }: MatchCardProps) {
             <p className="-mt-2 text-xs text-slate-500">Form and head-to-head source: {dataQuality.sourceNote}</p>
           )}
 
-          {/* Recommended Bet */}
-          {detailedPrediction.recommendedBet && (
-            <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-5 border-2 border-green-200 shadow-sm">
-              <div className="flex items-center gap-2 mb-3">
-                <Target className="w-5 h-5 text-green-600" />
-                <h3 className="font-bold text-slate-900">Recommended Bet</h3>
-              </div>
-              <div className="bg-white rounded-lg p-4 border border-green-200">
-                <p className="text-lg font-semibold text-green-700">{detailedPrediction.recommendedBet}</p>
-              </div>
-            </div>
-          )}
-
           {/* AI Explanation */}
           {explanationLines.length > 0 && (
             <div className="bg-white rounded-xl p-5 border-2 border-slate-200 shadow-sm">
               <div className="flex items-center gap-2 mb-4">
                 <Brain className="w-5 h-5 text-blue-600" />
-                <h3 className="font-bold text-slate-900">AI Analysis</h3>
+                <h3 className="font-bold text-slate-900">How the Estimate Was Built</h3>
               </div>
               <ul className="space-y-2">
                 {explanationLines.map((line, idx) => (
@@ -749,15 +749,9 @@ export default function MatchCard({ match }: MatchCardProps) {
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                {mlPrediction && (
-                  <span className={`text-xs font-bold px-2 py-1 rounded-full ${
-                    mlPrediction.confidence === 'high'   ? 'bg-green-100 text-green-800' :
-                    mlPrediction.confidence === 'medium' ? 'bg-yellow-100 text-yellow-800' :
-                                                           'bg-red-100 text-red-800'
-                  }`}>
-                    {mlPrediction.confidence} confidence
-                  </span>
-                )}
+                <span className="text-xs font-bold px-2 py-1 rounded-full bg-amber-100 text-amber-800">
+                  Experimental
+                </span>
                 <button
                   onClick={() => setShowMLInfo(true)}
                   title="How does this work?"
@@ -799,6 +793,10 @@ export default function MatchCard({ match }: MatchCardProps) {
             {/* Predictions grid */}
             {mlPrediction && !mlLoading && (
               <div className="space-y-4">
+                <p className="text-xs text-slate-600">
+                  In testing on past seasons this model matched the bookmakers&apos; odds but did not beat
+                  them. Treat it as a second opinion, not a tip.
+                </p>
 
                 {/* 1X2 Outcome */}
                 <div>
