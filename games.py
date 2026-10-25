@@ -1,10 +1,14 @@
 print("Script is running...")
 
+import os
+import sys
 import requests
 from datetime import datetime, timedelta
 
-# Your API Key
-API_KEY = 'cca7ab698d5f3c2e8707fe8d8381fa1f'  # ✫ Replace this with your real key
+# API key comes from the environment — never hardcode it
+API_KEY = os.environ.get('ODDS_API_KEY')
+if not API_KEY:
+    sys.exit("Set the ODDS_API_KEY environment variable first.")
 
 # Config
 SPORT = 'soccer_epl'       # You can change to other leagues

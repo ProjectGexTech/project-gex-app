@@ -200,3 +200,26 @@ export interface BookingCode {
   totalOdds: number;
   createdAt: Date;
 }
+
+export interface MLPrediction {
+  outcome: {
+    home_win: number;
+    draw: number;
+    away_win: number;
+  };
+  over_under_25: {
+    over: number;
+    under: number;
+  };
+  btts: {
+    yes: number;
+    no: number;
+  };
+  confidence: ConfidenceLevel;
+  predicted_winner: 'home' | 'draw' | 'away';
+  model_version: string;
+  training_samples: number;
+  teams_matched?: { home: string; away: string };
+  data_through?: string | null;
+  stale_history?: boolean; // team history older than ~3 weeks: predictions may lag recent form
+}

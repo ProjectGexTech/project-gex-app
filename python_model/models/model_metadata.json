@@ -1,0 +1,122 @@
+{
+  "version": "3.0.0",
+  "training_samples": 21174,
+  "leagues": [
+    "Bundesliga",
+    "EPL",
+    "LaLiga",
+    "League1",
+    "Ligue1",
+    "SerieA"
+  ],
+  "data_through": "2026-10-19",
+  "model_kind": "residual",
+  "feature_cols": [
+    "home_form_pts",
+    "home_goals_scored_avg",
+    "home_goals_conceded_avg",
+    "home_win_rate",
+    "home_draw_rate",
+    "away_form_pts",
+    "away_goals_scored_avg",
+    "away_goals_conceded_avg",
+    "away_win_rate",
+    "away_draw_rate",
+    "h2h_home_win_rate",
+    "h2h_draw_rate",
+    "h2h_goals_avg",
+    "odds_home_prob",
+    "odds_draw_prob",
+    "odds_away_prob",
+    "odds_ou25_over_prob",
+    "odds_ou25_under_prob",
+    "elo_diff",
+    "elo_home_expectancy",
+    "pois_xg_home",
+    "pois_xg_away",
+    "pois_p_home",
+    "pois_p_draw",
+    "pois_p_away",
+    "pois_p_over25",
+    "pois_p_btts",
+    "home_gf_l10",
+    "home_ga_l10",
+    "home_sot_for_l10",
+    "home_sot_against_l10",
+    "home_rest_days",
+    "away_gf_l10",
+    "away_ga_l10",
+    "away_sot_for_l10",
+    "away_sot_against_l10",
+    "away_rest_days"
+  ],
+  "evaluation_method": "Walk-forward by season (evaluate.py): each season is predicted by models trained only on earlier seasons, then compared with Pinnacle's closing odds and backtested at market prices.",
+  "evaluation": {
+    "test_matches": 5807,
+    "test_seasons": [
+      "2324",
+      "2425",
+      "2526",
+      "2627"
+    ],
+    "outcome": {
+      "log_loss_vs_closing_line": {
+        "matches": 5169,
+        "model_log_loss": 0.975,
+        "market_log_loss": 0.9721,
+        "difference": 0.0029,
+        "difference_95ci": [
+          0.0006,
+          0.0054
+        ]
+      },
+      "backtest_at_avg_price_edge_over_5pct": {
+        "bets": 443,
+        "bet_rate": 0.076,
+        "avg_odds": 3.69,
+        "roi": -0.0568,
+        "roi_95ci": [
+          -0.1964,
+          0.0825
+        ],
+        "max_drawdown_units": 43.7,
+        "avg_clv": -0.0415,
+        "clv_positive_rate": 0.298
+      }
+    },
+    "ou25": {
+      "log_loss_vs_closing_line": {
+        "matches": 5130,
+        "model_log_loss": 0.6722,
+        "market_log_loss": 0.6687,
+        "difference": 0.0035,
+        "difference_95ci": [
+          0.0014,
+          0.0056
+        ]
+      },
+      "backtest_at_avg_price_edge_over_5pct": {
+        "bets": 24,
+        "bet_rate": 0.004,
+        "avg_odds": 2.33,
+        "roi": -0.0542,
+        "roi_95ci": [
+          -0.4405,
+          0.3796
+        ],
+        "max_drawdown_units": 6.0,
+        "avg_clv": -0.0607,
+        "clv_positive_rate": 0.273
+      }
+    },
+    "btts": {
+      "model_log_loss": 0.6859,
+      "base_rate_log_loss": 0.6902,
+      "difference": -0.0043,
+      "difference_95ci": [
+        -0.0072,
+        -0.0014
+      ]
+    }
+  }
+}

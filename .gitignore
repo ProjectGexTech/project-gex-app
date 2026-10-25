@@ -36,6 +36,15 @@ yarn-error.log*
 # vercel
 .vercel
 
+# python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# historical match data (re-download with: python -m data.download_data)
+python_model/data/raw/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
