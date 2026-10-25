@@ -20,6 +20,10 @@ export interface LeagueMetadata {
   currentSeason: string;
   seasons: string[];
   supportsTeamFilter: boolean;
+  // API-Football league id, for team stats and head-to-head (football only)
+  apiFootballId?: number;
+  // Season runs within one calendar year (e.g. MLS), not August to May
+  calendarYearSeason?: boolean;
 }
 
 export interface SportMetadata {
@@ -49,6 +53,7 @@ export const LEAGUES_CONFIG: LeagueMetadata[] = [
     currentSeason: '2025/26',
     seasons: ['2025/26', '2024/25', '2023/24'],
     supportsTeamFilter: true,
+    apiFootballId: 39,
   },
   {
     key: 'soccer_spain_la_liga',
@@ -58,6 +63,7 @@ export const LEAGUES_CONFIG: LeagueMetadata[] = [
     currentSeason: '2025/26',
     seasons: ['2025/26', '2024/25', '2023/24'],
     supportsTeamFilter: true,
+    apiFootballId: 140,
   },
   {
     key: 'soccer_germany_bundesliga',
@@ -67,6 +73,7 @@ export const LEAGUES_CONFIG: LeagueMetadata[] = [
     currentSeason: '2025/26',
     seasons: ['2025/26', '2024/25', '2023/24'],
     supportsTeamFilter: true,
+    apiFootballId: 78,
   },
   {
     key: 'soccer_italy_serie_a',
@@ -76,6 +83,7 @@ export const LEAGUES_CONFIG: LeagueMetadata[] = [
     currentSeason: '2025/26',
     seasons: ['2025/26', '2024/25', '2023/24'],
     supportsTeamFilter: true,
+    apiFootballId: 135,
   },
   {
     key: 'soccer_france_ligue_one',
@@ -85,6 +93,7 @@ export const LEAGUES_CONFIG: LeagueMetadata[] = [
     currentSeason: '2025/26',
     seasons: ['2025/26', '2024/25', '2023/24'],
     supportsTeamFilter: true,
+    apiFootballId: 61,
   },
   {
     key: 'soccer_uefa_champs_league',
@@ -94,6 +103,7 @@ export const LEAGUES_CONFIG: LeagueMetadata[] = [
     currentSeason: '2025/26',
     seasons: ['2025/26', '2024/25', '2023/24'],
     supportsTeamFilter: true,
+    apiFootballId: 2,
   },
   {
     key: 'soccer_uefa_europa_league',
@@ -103,6 +113,7 @@ export const LEAGUES_CONFIG: LeagueMetadata[] = [
     currentSeason: '2025/26',
     seasons: ['2025/26', '2024/25', '2023/24'],
     supportsTeamFilter: true,
+    apiFootballId: 3,
   },
   {
     key: 'soccer_efl_champ',
@@ -112,6 +123,7 @@ export const LEAGUES_CONFIG: LeagueMetadata[] = [
     currentSeason: '2025/26',
     seasons: ['2025/26', '2024/25', '2023/24'],
     supportsTeamFilter: true,
+    apiFootballId: 40,
   },
   {
     key: 'soccer_england_league1',
@@ -121,6 +133,7 @@ export const LEAGUES_CONFIG: LeagueMetadata[] = [
     currentSeason: '2025/26',
     seasons: ['2025/26', '2024/25', '2023/24'],
     supportsTeamFilter: true,
+    apiFootballId: 41,
   },
   {
     key: 'soccer_england_league2',
@@ -130,6 +143,7 @@ export const LEAGUES_CONFIG: LeagueMetadata[] = [
     currentSeason: '2025/26',
     seasons: ['2025/26', '2024/25', '2023/24'],
     supportsTeamFilter: true,
+    apiFootballId: 42,
   },
   {
     key: 'soccer_netherlands_eredivisie',
@@ -139,6 +153,7 @@ export const LEAGUES_CONFIG: LeagueMetadata[] = [
     currentSeason: '2025/26',
     seasons: ['2025/26', '2024/25', '2023/24'],
     supportsTeamFilter: true,
+    apiFootballId: 88,
   },
   {
     key: 'soccer_portugal_primeira_liga',
@@ -148,6 +163,7 @@ export const LEAGUES_CONFIG: LeagueMetadata[] = [
     currentSeason: '2025/26',
     seasons: ['2025/26', '2024/25', '2023/24'],
     supportsTeamFilter: true,
+    apiFootballId: 94,
   },
   {
     key: 'soccer_scotland_premiership',
@@ -157,6 +173,7 @@ export const LEAGUES_CONFIG: LeagueMetadata[] = [
     currentSeason: '2025/26',
     seasons: ['2025/26', '2024/25', '2023/24'],
     supportsTeamFilter: true,
+    apiFootballId: 179,
   },
   {
     key: 'soccer_turkey_super_league',
@@ -166,6 +183,7 @@ export const LEAGUES_CONFIG: LeagueMetadata[] = [
     currentSeason: '2025/26',
     seasons: ['2025/26', '2024/25', '2023/24'],
     supportsTeamFilter: true,
+    apiFootballId: 203,
   },
   {
     key: 'soccer_belgium_first_div',
@@ -175,6 +193,7 @@ export const LEAGUES_CONFIG: LeagueMetadata[] = [
     currentSeason: '2025/26',
     seasons: ['2025/26', '2024/25', '2023/24'],
     supportsTeamFilter: true,
+    apiFootballId: 144,
   },
   {
     key: 'soccer_australia_aleague',
@@ -184,6 +203,7 @@ export const LEAGUES_CONFIG: LeagueMetadata[] = [
     currentSeason: '2025/26',
     seasons: ['2025/26', '2024/25', '2023/24'],
     supportsTeamFilter: true,
+    apiFootballId: 188,
   },
   {
     key: 'soccer_brazil_campeonato',
@@ -193,6 +213,8 @@ export const LEAGUES_CONFIG: LeagueMetadata[] = [
     currentSeason: '2025',
     seasons: ['2025', '2024', '2023'],
     supportsTeamFilter: true,
+    apiFootballId: 71,
+    calendarYearSeason: true,
   },
   {
     key: 'soccer_mexico_ligamx',
@@ -202,6 +224,7 @@ export const LEAGUES_CONFIG: LeagueMetadata[] = [
     currentSeason: '2025/26',
     seasons: ['2025/26', '2024/25', '2023/24'],
     supportsTeamFilter: true,
+    apiFootballId: 262,
   },
   {
     key: 'soccer_usa_mls',
@@ -211,6 +234,8 @@ export const LEAGUES_CONFIG: LeagueMetadata[] = [
     currentSeason: '2025',
     seasons: ['2025', '2024', '2023'],
     supportsTeamFilter: true,
+    apiFootballId: 253,
+    calendarYearSeason: true,
   },
   {
     key: 'soccer_argentina_primera_division',
@@ -220,6 +245,8 @@ export const LEAGUES_CONFIG: LeagueMetadata[] = [
     currentSeason: '2025',
     seasons: ['2025', '2024', '2023'],
     supportsTeamFilter: true,
+    apiFootballId: 128,
+    calendarYearSeason: true,
   },
 
   // ── Basketball ─────────────────────────────────────────────────────────────

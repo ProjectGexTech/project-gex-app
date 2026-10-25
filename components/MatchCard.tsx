@@ -114,7 +114,8 @@ export default function MatchCard({ match }: MatchCardProps) {
 
   const extractLastFiveForm = (formString?: string): Array<'W' | 'L' | 'D'> => {
     if (!formString || formString === 'N/A') return [];
-    return formString.split('').map(normalizeResultChar).slice(0, 5);
+    // Season form strings run oldest → newest, so the last 5 characters are the latest games
+    return formString.split('').map(normalizeResultChar).slice(-5);
   };
 
   const getTeamH2HResult = (game: any, teamName: string): 'W' | 'L' | 'D' => {
@@ -133,12 +134,7 @@ export default function MatchCard({ match }: MatchCardProps) {
   const awayH2HLastFive  = h2hGamesLastFive.map(g => getTeamH2HResult(g, match.awayTeam.name));
   const hasRealH2HSection = h2hGamesLastFive.length > 0;
 
-  const explanationLines = (detailedPrediction?.explanation || []).filter(line => {
-    if (!dataQuality) return true;
-    if (dataQuality.form === 'mock' && /recent form/i.test(line)) return false;
-    if (dataQuality.h2h  === 'mock' && /head-to-head/i.test(line)) return false;
-    return true;
-  });
+  const explanationLines = detailedPrediction?.explanation || [];
 
   const handleShowAIAnalysis = async () => {
     if (!showAIAnalysis) {
@@ -584,7 +580,9 @@ export default function MatchCard({ match }: MatchCardProps) {
                 )}
               </div>
             ) : (
-              <div className="text-sm text-slate-500">Not available</div>
+              <div className="text-sm text-slate-500">
+                Not enough data{dataQuality?.formReason ? `: ${dataQuality.formReason}` : ''}
+              </div>
             )}
           </div>
 
@@ -608,7 +606,9 @@ export default function MatchCard({ match }: MatchCardProps) {
                 </div>
               </div>
             ) : (
-              <div className="text-sm text-slate-500">Not available</div>
+              <div className="text-sm text-slate-500">
+                Not enough data{dataQuality?.h2hReason ? `: ${dataQuality.h2hReason}` : ''}
+              </div>
             )}
           </div>
 

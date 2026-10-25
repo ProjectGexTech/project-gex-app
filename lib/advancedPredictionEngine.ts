@@ -85,23 +85,26 @@ function analyzeRecentForm(match: Match): { score: number; confidence: number } 
   // This weights recent performance MORE than distant past
   const decayFactors = [1.0, 0.95, 0.90, 0.85, 0.80, 0.75, 0.70, 0.65, 0.60, 0.55];
   
-  const homeFormString = homeForm.form || '';
-  const awayFormString = awayForm.form || '';
-  
-  let homeScore = 0, awayScore = 0;
-  
-  for (let i = 0; i < Math.min(homeFormString.length, decayFactors.length); i++) {
-    const homeChar = homeFormString[i];
-    const awayChar = awayFormString[i];
-    
-    // Win = 3 points, Draw = 1 point, Loss = 0 points (with recency weighting)
-    homeScore += (homeChar === 'W' ? 3 : homeChar === 'D' ? 1 : 0) * decayFactors[i];
-    awayScore += (awayChar === 'W' ? 3 : awayChar === 'D' ? 1 : 0) * decayFactors[i];
+  // Form strings run oldest → newest; reverse the last 10 so index 0 is the most recent game
+  const recentFirst = (form: string) => form.replace(/[^WDL]/g, '').slice(-decayFactors.length).split('').reverse();
+  const homeResults = recentFirst(homeForm.form || '');
+  const awayResults = recentFirst(awayForm.form || '');
+
+  if (homeResults.length === 0 || awayResults.length === 0) {
+    return { score: 50, confidence: 0 };
   }
-  
-  // Convert weighted scores to points-per-game
-  const homePoints = homeScore / Math.min(homeForm.gamesPlayed, decayFactors.length);
-  const awayPoints = awayScore / Math.min(awayForm.gamesPlayed, decayFactors.length);
+
+  // Win = 3 points, Draw = 1 point, Loss = 0 points, weighted by recency, per unit of weight
+  const weightedPoints = (results: string[]) => {
+    let points = 0, weight = 0;
+    results.forEach((r, i) => {
+      points += (r === 'W' ? 3 : r === 'D' ? 1 : 0) * decayFactors[i];
+      weight += decayFactors[i];
+    });
+    return points / weight;
+  };
+  const homePoints = weightedPoints(homeResults);
+  const awayPoints = weightedPoints(awayResults);
 
   // Calculate goal difference per game
   const homeGDPerGame = (homeForm.goalsScored - homeForm.goalsConceded) / homeForm.gamesPlayed;
@@ -138,20 +141,24 @@ function analyzeHeadToHead(match: Match): { score: number; confidence: number } 
 
   // Calculate H2H results with recency weighting
   // Last 5 H2H games have 2x weight (more recent = more relevant)
+  // Games are most recent first; a game's `result` is from that fixture's home side,
+  // so check which side today's home team was on
   const games = h2h.games && h2h.games.length > 0 ? h2h.games : [];
-  
+  const homeTeamWon = (g: typeof games[number]) =>
+    g.homeTeam === match.homeTeam.name ? g.homeGoals > g.awayGoals : g.awayGoals > g.homeGoals;
+
   let recentHomeWins = 0, olderHomeWins = 0;
   let recentTotal = 0, olderTotal = 0;
-  
+
   for (let i = 0; i < games.length; i++) {
     if (i < 5) {
       // Recent games (last 5)
       recentTotal++;
-      if (games[i].result === 'H') recentHomeWins++;
+      if (homeTeamWon(games[i])) recentHomeWins++;
     } else {
       // Older games
       olderTotal++;
-      if (games[i].result === 'H') olderHomeWins++;
+      if (homeTeamWon(games[i])) olderHomeWins++;
     }
   }
   
@@ -371,6 +378,14 @@ function generateExplanation(
     explanation.push(`🔄 Head-to-head: ${match.h2h.homeWins}W-${match.h2h.draws}D-${match.h2h.awayWins}L in last ${match.h2h.totalMeetings} meetings`);
   }
 
+  if (match.dataQuality?.form === 'unavailable' || match.dataQuality?.h2h === 'unavailable') {
+    const missing = [
+      match.dataQuality.form === 'unavailable' ? 'recent form' : null,
+      match.dataQuality.h2h === 'unavailable' ? 'head-to-head' : null,
+    ].filter(Boolean).join(' and ');
+    explanation.push(`ℹ️ No ${missing} data for this match, so it was left out of the prediction`);
+  }
+
   // Home advantage
   explanation.push(`🏠 Home advantage factor included (${factors.homeAwayPerformance.weight}% weight)`);
 
@@ -417,7 +432,8 @@ function generateRecommendedBet(
  */
 export function getPredictionCacheKey(matchId: string): string {
   const today = new Date().toISOString().split('T')[0];
-  return `prediction_${matchId}_${today}`;
+  // v2: predictions saved before mock data was removed must not be reused
+  return `prediction_v2_${matchId}_${today}`;
 }
 
 /**

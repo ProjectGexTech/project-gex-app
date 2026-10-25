@@ -3,7 +3,8 @@
 export type MarketType = 'h2h' | 'ou25' | 'btts' | 'dc' | 'spreads' | 'teamTotals' | 'drawNoBet' | 'doubleChance';
 
 export type ConfidenceLevel = 'low' | 'medium' | 'high';
-export type DataSource = 'real' | 'mock';
+// 'unavailable' means the data couldn't be fetched; nothing is ever filled in with made-up values
+export type DataSource = 'real' | 'unavailable';
 
 export interface DataQualityInfo {
   form: DataSource;
