@@ -72,9 +72,13 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# Browsers only need this if a page calls the server directly (the Next.js app proxies);
+# comma-separated, e.g. ALLOWED_ORIGINS=https://gexten.example,http://localhost:3000
+ALLOWED_ORIGINS = [o.strip() for o in os.environ.get("ALLOWED_ORIGINS", "http://localhost:3000").split(",") if o.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_methods=["POST", "GET"],
     allow_headers=["Content-Type"],
 )
