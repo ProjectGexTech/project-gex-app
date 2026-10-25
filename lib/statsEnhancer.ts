@@ -359,4 +359,4 @@ export async function enhanceMatchesWithStats(matches: Partial<Match>[]): Promis
   }
 }
 
-export { transformTeamStats, transformH2H, calculateEnhancedPrediction };
+export { transformTeamStats, transformH2H, calculateEnhancedPrediction, formFromHistory, h2hFromHistory };

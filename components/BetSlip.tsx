@@ -7,7 +7,7 @@ import { format } from 'date-fns';
 import { ShoppingCart, Ticket, Copy, CheckCircle2, XCircle, Info } from 'lucide-react';
 
 // Plain-text slip the user can paste into notes or a chat, or use as a checklist at their bookmaker
-function formatSlip(selections: BettingSelection[], totalOdds: number): string {
+export function formatSlip(selections: BettingSelection[], totalOdds: number): string {
   const lines = selections.map((sel, i) => {
     const { match } = sel;
     const kickoff = format(new Date(match.date), 'EEE d MMM, HH:mm');
