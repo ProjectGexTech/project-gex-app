@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cached } from '@/lib/serverCache';
+import { resolveApiKey, keyFingerprint } from '@/lib/serverApiKeys';
+import { FOOTBALL_KEY_HEADER } from '@/lib/apiKeyHeaderNames';
 
-// Proxies API-Football so the key stays on the server (API_FOOTBALL_KEY in .env.local)
-// and every visitor shares cached responses. Only the endpoints the app uses are allowed.
+// Proxies API-Football with the key typed into the app (sent as a header) or, failing
+// that, API_FOOTBALL_KEY from .env.local. Only the endpoints the app uses are allowed.
 
 const API_BASE_URL = 'https://v3.football.api-sports.io';
 
@@ -26,17 +28,21 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     return NextResponse.json({ error: 'Unknown endpoint' }, { status: 404 });
   }
 
-  const apiKey = process.env.API_FOOTBALL_KEY;
-  if (!apiKey) {
-    // Same shape as API-Football's own errors, so the client reports it the same way
+  // Errors use API-Football's own shape, so the client reports them the same way
+  const resolved = resolveApiKey(request.headers.get(FOOTBALL_KEY_HEADER), process.env.API_FOOTBALL_KEY);
+  if (!resolved) {
     return NextResponse.json(
-      { errors: { token: 'key is not set on the server. Add API_FOOTBALL_KEY to .env.local and restart' } },
+      { errors: { token: 'no key. Enter it with the API keys button, or set API_FOOTBALL_KEY in .env.local' } },
       { status: 200 }
     );
   }
+  if ('error' in resolved) {
+    return NextResponse.json({ errors: { token: resolved.error } }, { status: 200 });
+  }
+  const apiKey = resolved.key;
 
   const query = new URLSearchParams([...request.nextUrl.searchParams.entries()].sort(([a], [b]) => a.localeCompare(b)));
-  const cacheKey = `football:${endpoint}?${query}`;
+  const cacheKey = `football:${keyFingerprint(apiKey)}:${endpoint}?${query}`;
 
   try {
     const result = await cached<UpstreamResult>(

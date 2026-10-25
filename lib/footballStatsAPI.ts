@@ -6,6 +6,7 @@
 
 import { DataSource } from './types';
 import { getLeagueByKey } from './leagueConfig';
+import { apiKeyHeaders } from './apiKeyHeaders';
 
 export interface APIFootballTeamStats {
   team: {
@@ -97,7 +98,7 @@ export interface APIFootballH2H {
   };
 }
 
-// Our server route adds the API key (API_FOOTBALL_KEY) and shares cached responses
+// Our server route calls API-Football with the key entered in the app (or API_FOOTBALL_KEY)
 const API_BASE_URL = '/api/football';
 
 /**
@@ -149,7 +150,7 @@ export class FootballStatsService {
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/teams?search=${encodeURIComponent(teamName)}`);
+      const response = await fetch(`${API_BASE_URL}/teams?search=${encodeURIComponent(teamName)}`, { headers: apiKeyHeaders() });
       if (!response.ok) {
         return { error: `API-Football returned status ${response.status}` };
       }
@@ -210,7 +211,8 @@ export class FootballStatsService {
 
       const season = getSeasonYear(matchDate, league.calendarYearSeason);
       const response = await fetch(
-        `${API_BASE_URL}/teams/statistics?team=${team.id}&league=${league.apiFootballId}&season=${season}`
+        `${API_BASE_URL}/teams/statistics?team=${team.id}&league=${league.apiFootballId}&season=${season}`,
+        { headers: apiKeyHeaders() }
       );
 
       if (!response.ok) {
@@ -259,7 +261,7 @@ export class FootballStatsService {
       const away = await this.findTeamId(awayTeam);
       if ('error' in away) return unavailable(away.error);
 
-      const response = await fetch(`${API_BASE_URL}/fixtures/headtohead?h2h=${home.id}-${away.id}`);
+      const response = await fetch(`${API_BASE_URL}/fixtures/headtohead?h2h=${home.id}-${away.id}`, { headers: apiKeyHeaders() });
 
       if (!response.ok) {
         return unavailable(`API-Football returned status ${response.status}`);

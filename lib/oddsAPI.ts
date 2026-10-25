@@ -23,7 +23,9 @@ interface OddsAPIMatch {
   }>;
 }
 
-// Our server route adds the API key (ODDS_API_KEY) and shares cached responses
+import { apiKeyHeaders } from './apiKeyHeaders';
+
+// Our server route calls The Odds API with the key entered in the app (or ODDS_API_KEY)
 const API_BASE_URL = '/api/odds';
 
 // Soccer sports available on The Odds API
@@ -264,6 +266,7 @@ export class OddsAPIService {
       method: 'GET',
       headers: {
         'Accept': 'application/json',
+        ...apiKeyHeaders(),
       },
     });
 
@@ -272,7 +275,7 @@ export class OddsAPIService {
       const serverMessage = (body as Record<string, string>).error ?? (body as Record<string, string>).message;
 
       if (response.status === 401) {
-        throw new Error('The Odds API rejected the key. Check ODDS_API_KEY in .env.local');
+        throw new Error(serverMessage || 'The Odds API rejected the key. Check it with the API keys button');
       } else if (response.status === 429) {
         throw new Error('API rate limit exceeded. Please wait before trying again');
       }

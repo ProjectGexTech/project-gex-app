@@ -14,7 +14,8 @@
 **Get live soccer odds in 5 minutes!**
 
 1. **Get API Key**: Sign up at [The Odds API](https://the-odds-api.com/) (FREE)
-2. **Set API Key**: Add to `.env.local`:
+2. **Enter your key**: the app asks for it when it opens (and the **API keys** button changes it).
+   Optionally, give the server a default key instead in `.env.local`:
    ```env
    ODDS_API_KEY=your_api_key_here
    API_FOOTBALL_KEY=your_api_football_key   # optional fallback for team stats
