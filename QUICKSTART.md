@@ -27,12 +27,12 @@ Get your Gexten app running with live soccer odds in 5 minutes!
 Open `.env.local` file in your project root and add your API key:
 
 ```env
-NEXT_PUBLIC_ODDS_API_KEY=paste_your_api_key_here
+ODDS_API_KEY=paste_your_api_key_here
 ```
 
 **Example:**
 ```env
-NEXT_PUBLIC_ODDS_API_KEY=abc123def456ghi789jkl012mno345pq
+ODDS_API_KEY=abc123def456ghi789jkl012mno345pq
 ```
 
 💡 **Tip:** The `.env.local` file was already created for you!

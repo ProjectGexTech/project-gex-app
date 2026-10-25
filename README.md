@@ -16,7 +16,8 @@
 1. **Get API Key**: Sign up at [The Odds API](https://the-odds-api.com/) (FREE)
 2. **Set API Key**: Add to `.env.local`:
    ```env
-   NEXT_PUBLIC_ODDS_API_KEY=your_api_key_here
+   ODDS_API_KEY=your_api_key_here
+   API_FOOTBALL_KEY=your_api_football_key   # optional fallback for team stats
    ```
 3. **Run App**:
    ```bash
@@ -118,7 +119,7 @@ This app uses [The Odds API](https://the-odds-api.com/) to fetch live soccer odd
 1. Get your API key from https://the-odds-api.com/
 2. Add to `.env.local`:
    ```env
-   NEXT_PUBLIC_ODDS_API_KEY=your_api_key_here
+   ODDS_API_KEY=your_api_key_here
    ```
 3. Restart your dev server
 
