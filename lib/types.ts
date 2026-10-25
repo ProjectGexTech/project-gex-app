@@ -193,14 +193,6 @@ export interface BettingSelection {
   odds: number;
 }
 
-export interface BookingCode {
-  code: string;
-  bookmaker: string;
-  selections: BettingSelection[];
-  totalOdds: number;
-  createdAt: Date;
-}
-
 export interface MLPrediction {
   outcome: {
     home_win: number;

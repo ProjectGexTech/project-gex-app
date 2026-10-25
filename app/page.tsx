@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useGextenStore } from '@/lib/store';
 import { useAPIKeysStore } from '@/lib/apiKeysStore';
 import MatchCard from '@/components/MatchCard';
-import BookingCodeGenerator from '@/components/BookingCodeGenerator';
+import BetSlip from '@/components/BetSlip';
 import APIKeysModal from '@/components/APIKeysModal';
 import FilterWizard from '@/components/FilterWizard';
 import { getLeagueByKey, SportType } from '@/lib/leagueConfig';
@@ -341,7 +341,7 @@ export default function Home() {
               {/* RIGHT SECTION - BET SLIP (Narrower, Sticky) */}
               <div className="lg:col-span-1">
                 <div className="sticky top-24">
-                  <BookingCodeGenerator />
+                  <BetSlip />
                 </div>
               </div>
             </div>
