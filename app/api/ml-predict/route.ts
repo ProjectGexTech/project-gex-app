@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-
-const ML_SERVER = 'http://localhost:8000';
+import { ML_SERVER } from '@/lib/mlServer';
 
 export async function POST(request: NextRequest) {
   try {

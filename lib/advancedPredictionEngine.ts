@@ -432,8 +432,8 @@ function generateRecommendedBet(
  */
 export function getPredictionCacheKey(matchId: string): string {
   const today = new Date().toISOString().split('T')[0];
-  // v2: predictions saved before mock data was removed must not be reused
-  return `prediction_v2_${matchId}_${today}`;
+  // v3: predictions saved before real match history was used must not be reused
+  return `prediction_v3_${matchId}_${today}`;
 }
 
 /**

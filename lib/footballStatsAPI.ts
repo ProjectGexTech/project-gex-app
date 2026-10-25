@@ -302,7 +302,7 @@ export class FootballStatsService {
       }
 
       const response = await fetch(
-        `${API_BASE_URL}/fixtures/headtohead?h2h=${homeTeamId}-${awayTeamId}&last=10`,
+        `${API_BASE_URL}/fixtures/headtohead?h2h=${homeTeamId}-${awayTeamId}`,
         {
           headers: {
             'x-apisports-key': API_KEY
@@ -321,7 +321,11 @@ export class FootballStatsService {
       }
 
       if (data.response && data.response.length > 0) {
-        const h2hData = data.response.slice(0, 10); // Last 10 games
+        // Free plans reject the `last` parameter, so sort here and keep the last 10 games
+        const h2hData = [...data.response]
+          .sort((a: APIFootballH2H, b: APIFootballH2H) =>
+            new Date(b.fixture.date).getTime() - new Date(a.fixture.date).getTime())
+          .slice(0, 10);
         this.setCachedDataWithSource(cacheKey, h2hData, 'real');
         return h2hData;
       }

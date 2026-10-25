@@ -13,6 +13,8 @@ export interface DataQualityInfo {
   formReason?: string;
   h2hReason?: string;
   overallReason?: string;
+  // Where real form/H2H came from, shown on the match card (e.g. "Match history up to 2026-10-19")
+  sourceNote?: string;
   notes?: string[];
 }
 

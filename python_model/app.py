@@ -5,6 +5,7 @@ Exposes three endpoints:
   GET  /health       — liveness probe; reports whether models are loaded
   GET  /model-info   — returns training metadata (walk-forward evaluation, version, etc.)
   POST /predict      — takes a fixture + odds, returns calibrated ML probabilities
+  POST /team-stats   — this season's form and goals for both teams, plus past meetings
 
 Team form, goals, shots, Elo and H2H come from the server's own match history
 (models/team_history.pkl, built by train.py), so the app only sends the fixture
@@ -93,6 +94,13 @@ class MatchInput(BaseModel):
     odds_away: Optional[float] = None
     odds_ou25_over: Optional[float] = None
     odds_ou25_under: Optional[float] = None
+
+
+class FixtureInput(BaseModel):
+    """A fixture by The Odds API names and sport key."""
+    sport_key: str
+    home_team: str
+    away_team: str
 
 
 def _candidates(league: str) -> list:
@@ -214,6 +222,66 @@ def predict(match: MatchInput):
         "teams_matched":    {"home": home, "away": away},
         "data_through":     _metadata.get("data_through"),
         "stale_history":    stale,
+    }
+
+
+@app.post("/team-stats")
+def team_stats(match: FixtureInput):
+    """
+    Real results from the server's match history, for the app to show and use
+    instead of API-Football (whose free plan has no current-season data).
+    Form strings run oldest -> newest; meetings are most recent first.
+    """
+    if _history is None:
+        raise HTTPException(503, "Match history not loaded. Run 'python train.py' first.")
+
+    league = SPORT_KEY_TO_LEAGUE.get(match.sport_key)
+    if league is None:
+        raise HTTPException(422, "Our match history does not cover this league.")
+
+    candidates = _candidates(league)
+    home = resolve_team(match.home_team, candidates)
+    away = resolve_team(match.away_team, candidates)
+    missing = [n for n, r in ((match.home_team, home), (match.away_team, away)) if r is None]
+    if missing or home == away:
+        raise HTTPException(422, f"No match history found for: {', '.join(missing) or match.home_team}.")
+
+    season = _history.current_season.get(league, "")
+
+    def season_record(team: str) -> dict:
+        # .get, not [], so reading never adds empty entries to the defaultdicts
+        form = _history.form.get((league, season, team), "")
+        h = _history.venue.get((league, season, team, "H"), [0.0, 0.0, 0])
+        a = _history.venue.get((league, season, team, "A"), [0.0, 0.0, 0])
+        last = _history.last_date.get(team)
+        return {
+            "form": form,
+            "games_played": len(form),
+            "goals_scored": int(h[0] + a[0]),
+            "goals_conceded": int(h[1] + a[1]),
+            "last_match": last.strftime("%Y-%m-%d") if last is not None else None,
+        }
+
+    # Report meetings with the app's own team names so it can tell the sides apart
+    app_name = {home: match.home_team, away: match.away_team}
+    meetings = []
+    for g in reversed(_history.h2h.get(frozenset((home, away)), [])[-10:]):
+        date = g.get("Date")  # absent in histories built before dates were stored
+        meetings.append({
+            "date": date.strftime("%Y-%m-%d") if date is not None and not pd.isna(date) else None,
+            "home_team": app_name[g["HomeTeam"]],
+            "away_team": app_name[g["AwayTeam"]],
+            "home_goals": int(g["FTHG"]),
+            "away_goals": int(g["FTAG"]),
+        })
+
+    return {
+        "teams_matched": {"home": home, "away": away},
+        "season": season,
+        "data_through": _metadata.get("data_through"),
+        "home": season_record(home),
+        "away": season_record(away),
+        "h2h": meetings,
     }
 
 

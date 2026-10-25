@@ -612,6 +612,10 @@ export default function MatchCard({ match }: MatchCardProps) {
             )}
           </div>
 
+          {dataQuality?.sourceNote && (hasRealFormSection || hasRealH2HSection) && (
+            <p className="-mt-2 text-xs text-slate-500">Form and head-to-head source: {dataQuality.sourceNote}</p>
+          )}
+
           {/* Recommended Bet */}
           {detailedPrediction.recommendedBet && (
             <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-5 border-2 border-green-200 shadow-sm">

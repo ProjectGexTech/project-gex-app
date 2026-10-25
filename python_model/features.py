@@ -343,7 +343,7 @@ class TeamHistory:
         hv[0] += hg; hv[1] += ag; hv[2] += 1
         av[0] += ag; av[1] += hg; av[2] += 1
         self.h2h[frozenset((home, away))].append(
-            {k: row[k] for k in ("HomeTeam", "AwayTeam", "FTR", "FTHG", "FTAG")}
+            {k: row[k] for k in ("Date", "HomeTeam", "AwayTeam", "FTR", "FTHG", "FTAG")}
         )
         self.recent[home].append((hg, ag, hs, as_))
         self.recent[away].append((ag, hg, as_, hs))
