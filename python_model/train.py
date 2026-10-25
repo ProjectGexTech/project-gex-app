@@ -13,8 +13,13 @@ Model quality is measured separately by evaluate.py (walk-forward by season,
 benchmarked against the betting market); its summary is copied into
 model_metadata.json when available.
 
+Before overwriting the saved models it runs the release gate (release_gate.py):
+the latest evaluate.py report must show the deployed model kind is at least
+level with the market. Run evaluate.py first after any modelling change.
+
 Run: python train.py            (uses the downloaded data)
      python train.py --refresh  (re-downloads the current season first)
+     python train.py --force    (skip the release gate; never for deployment)
 """
 import os
 import sys
@@ -27,6 +32,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 from data.download_data import download_data
 from features import compute_rolling_features, TeamHistory, FEATURE_COLS
 from modeling import TARGETS, fit_model, DEFAULT_KIND
+from release_gate import gate_failures
 
 MODELS_DIR    = os.path.join(os.path.dirname(__file__), "models")
 DATA_COMBINED = os.path.join(os.path.dirname(__file__), "data", "raw", "combined.csv")
@@ -54,7 +60,20 @@ def _evaluation_summary() -> dict:
     return summary
 
 
-def train(refresh: bool = False):
+def train(refresh: bool = False, force: bool = False):
+    # ── 0. Release gate: refuse to replace the models unless they passed evaluation
+    failures = gate_failures()
+    if failures is None:
+        print("No evaluation report. Run 'python evaluate.py' first (or --force to skip).")
+        if not force:
+            sys.exit(1)
+    elif failures:
+        for market, _, detail in failures:
+            print(f"  FAIL  {market}: {detail}")
+        print("Release gate failed: the saved models were NOT replaced (--force to override).")
+        if not force:
+            sys.exit(1)
+
     # ── 1. Load or download raw data ──────────────────────────────────────────
     if refresh or not os.path.exists(DATA_COMBINED):
         print("Downloading data from football-data.co.uk...")
@@ -103,4 +122,4 @@ def train(refresh: bool = False):
 
 
 if __name__ == "__main__":
-    train(refresh="--refresh" in sys.argv)
+    train(refresh="--refresh" in sys.argv, force="--force" in sys.argv)

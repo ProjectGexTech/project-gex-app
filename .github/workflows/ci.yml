@@ -35,6 +35,8 @@ jobs:
           cache-dependency-path: python_model/requirements*.txt
       - run: pip install -r requirements-dev.txt
       - run: python -m pytest -q
+      - name: Release gate (committed models must be level with the market)
+        run: python release_gate.py
 
   docker:
     name: ML server (Docker image)
