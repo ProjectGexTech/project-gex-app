@@ -2,7 +2,9 @@
 # XGBoost models may not load (or may predict differently) under other versions.
 # Change these only together with a retrain (python train.py).
 scikit-learn==1.9.0
-xgboost==3.3.0
+# CPU-only build of the same XGBoost release (imported as `xgboost`): the default wheel bundles
+# CUDA and NCCL, which pushes the Vercel bundle past its 500 MB limit.
+xgboost-cpu==3.3.0
 numpy==2.5.0
 pandas==3.0.3
 joblib==1.5.3

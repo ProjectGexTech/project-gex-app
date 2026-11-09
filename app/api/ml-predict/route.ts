@@ -9,7 +9,7 @@ export async function POST(request: NextRequest) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
-      signal: AbortSignal.timeout(10_000),
+      signal: AbortSignal.timeout(20_000),
     });
 
     if (!response.ok) {
@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
 export async function GET() {
   try {
     const response = await fetch(`${ML_SERVER}/health`, {
-      signal: AbortSignal.timeout(3_000),
+      signal: AbortSignal.timeout(15_000), // allows for a serverless cold start (loading the models)
     });
     const data = await response.json();
     return NextResponse.json(data);

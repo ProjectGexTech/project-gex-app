@@ -258,7 +258,7 @@ export class OddsAPIService {
       params.append('bookmakers', bookmakers.join(','));
     }
 
-    const url = `${API_BASE_URL}/sports/${sportKey}/odds?${params}`;
+    const url = `${API_BASE_URL}/${sportKey}?${params}`;
     
     // console.log(`📡 Fetching ${sportKey}...`);
     

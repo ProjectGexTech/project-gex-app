@@ -1,0 +1,6 @@
+# The function only serves the trained models in models/
+data/raw/
+tests/
+__pycache__/
+.pytest_cache/
+*.bat
